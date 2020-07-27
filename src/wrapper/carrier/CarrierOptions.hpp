@@ -49,7 +49,7 @@ private:
 
     /*** class function and variable ***/
 
-}; // class CARRIER_OPTIONS
+}; // class CarrierOptions
 
 } // namespace elastos
 

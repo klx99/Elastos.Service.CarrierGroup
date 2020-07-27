@@ -8,38 +8,39 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#ifndef _ELASTOS_CARRIER_HANDLER_HPP_
-#define _ELASTOS_CARRIER_HANDLER_HPP_
+#ifndef _ELASTOS_CMD_LISTENER_HPP_
+#define _ELASTOS_CMD_LISTENER_HPP_
 
-#include <string>
+#include <CarrierHandler.hpp>
 
 namespace elastos {
 
-class CarrierHandler {
+class Carrier;
+
+class CmdListener : public CarrierHandler {
 public:
     /*** type define ***/
-    enum Status {
-        Online        = 1,
-        Offline       = 2,
-    };
 
     /*** static function and variable ***/
-    virtual void onError(int errCode) = 0;
+
+    /*** class function and variable ***/
+    explicit CmdListener(std::weak_ptr<Carrier> carrier);
+    virtual ~CmdListener() = default;
+
+    virtual void onError(int errCode) override;
 
     virtual void onStatusChanged(const std::string& userId,
-                                 Status status) = 0;
+                                 Status status) override;
 
     virtual void onFriendRequest(const std::string& friendCode,
-                                    const std::string& summary) = 0;
+                                    const std::string& summary) override;
 
     virtual void onFriendStatusChanged(const std::string& friendCode,
-                                        Status status) = 0;
+                                        Status status) override;
 
     virtual void onReceivedMessage(const std::string& friendCode,
                                    int64_t timestamp,
-                                   const std::vector<uint8_t>& message) = 0;
-
-    /*** class function and variable ***/
+                                   const std::vector<uint8_t>& message) override;
 
 protected:
     /*** type define ***/
@@ -47,8 +48,6 @@ protected:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit CarrierHandler() = default;
-    virtual ~CarrierHandler() = default;
 
 private:
     /*** type define ***/
@@ -56,9 +55,10 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
+    std::weak_ptr<Carrier> carrier;
 
-}; // class CarrierHandler
+}; // class CmdListener
 
 } // namespace elastos
 
-#endif /* _ELASTOS_CARRIER_HANDLER_HPP_ */
+#endif /* _ELASTOS_CMD_LISTENER_HPP_ */

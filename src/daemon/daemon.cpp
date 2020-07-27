@@ -1,6 +1,7 @@
 #include <thread>
 
 #include <Carrier.hpp>
+#include <CmdListener.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 #include <Json.hpp>
@@ -8,6 +9,8 @@
 int main(int argc, char **argv)
 {
     int rc;
+
+    auto carrier = std::make_shared<elastos::Carrier>();
 
     auto options = std::make_shared<elastos::CarrierOptions>();
     options->logLevel = 4;
@@ -23,18 +26,22 @@ int main(int argc, char **argv)
     options->expressNode.push_back({ "ece01.trinity-tech.io", "443", "FyTt6cgnoN1eAMfmTRJCaX2UoN6ojAgCimQEbv1bruy9" });
     options->expressNode.push_back({ "ece01.trinity-tech.cn", "443", "FyTt6cgnoN1eAMfmTRJCaX2UoN6ojAgCimQEbv1bruy9" });
 
-    auto carrier = std::make_shared<elastos::Carrier>();
+    auto handlers = std::make_shared<elastos::CmdListener>(carrier);
     
-    rc = carrier->config(options, nullptr);
+    rc = carrier->config(options, handlers);
     CHECK_ERROR(rc);
 
     rc = carrier->start();
     CHECK_ERROR(rc);
 
-    std::string address;
+    std::string address, userId;
     rc = carrier->getAddress(address);
     CHECK_ERROR(rc);
-    Log::W(Log::TAG, "Carrier started. address: %s", address.c_str());
+    rc = elastos::Carrier::GetUsrIdByAddress(address, userId);
+    CHECK_ERROR(rc);
+    Log::W(Log::TAG, "Carrier started.");
+    Log::W(Log::TAG, "Address: %s", address.c_str());
+    Log::W(Log::TAG, "UserId: %s", userId.c_str());
 
     while(true) {
         std::this_thread::sleep_for(std::chrono::seconds(1));

@@ -73,7 +73,7 @@ private:
     std::shared_ptr<ElaCarrier> elaCarrierImpl;
     CarrierHandler::Status status;
 
-}; // class CARRIER
+}; // class Carrier
 
 } // namespace elastos
 
