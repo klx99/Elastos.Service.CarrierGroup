@@ -5,12 +5,9 @@
 //  Copyright © 2016 mengxk. All rights reserved.
 //
 
-#if 0
-
 #include "ThreadPool.hpp"
 
 #include "Log.hpp"
-#include "Platform.hpp"
 
 namespace elastos {
 
@@ -148,10 +145,7 @@ void ThreadPool::processTaskQueue(void)
 		}
 	} while (!mQuit);
 
-//	Platform::DetachCurrentThread();
 	Log::D(Log::TAG, "%s name:%s exit.", FORMAT_METHOD, mThreadName.c_str());
 }
 
 } // namespace elastos
-
-#endif // 0

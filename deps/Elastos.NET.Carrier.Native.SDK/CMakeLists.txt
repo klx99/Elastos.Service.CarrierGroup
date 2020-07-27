@@ -7,9 +7,9 @@ ExternalProject_Add(
     Elastos.NET.Carrier.Native.SDK
 
     PREFIX ${PROJECT_DEPS_BUILD_PREFIX}
-    URL "https://github.com/klx99/Elastos.NET.Carrier.Native.SDK/archive/bug_receipts.zip"
-    URL_HASH SHA256=23df4f8e0090455c8c11e4086e98d1d7bcbe4a13b9040f3f045f3aed6f73d8d8
-    DOWNLOAD_NAME "Elastos.NET.Carrier.Native.SDK-bug_receipts.zip"
+    URL "https://github.com/elastos/Elastos.NET.Carrier.Native.SDK/archive/release-v5.6.2.zip"
+    URL_HASH SHA256=b15635b64a8d55ed8af8a3c10c6ef64faaeec9d3a61d9d0e98960d94197864a9
+    DOWNLOAD_NAME "Elastos.NET.Carrier.Native.SDK-v5.6.2.zip"
     DOWNLOAD_DIR ${PROJECT_DEPS_TARBALL_DIR}
     DOWNLOAD_NO_PROGRESS 1
     LOG_DOWNLOAD FALSE
