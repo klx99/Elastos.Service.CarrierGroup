@@ -1,0 +1,7 @@
+file(GLOB JSON_SOURCES "*.hpp" "*.cpp")
+if(${CMAKE_VERSION} VERSION_LESS "3.12")
+    add_library(json STATIC ${JSON_SOURCES})
+else()
+    add_library(json OBJECT ${JSON_SOURCES})
+endif()
+target_include_directories(json PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
