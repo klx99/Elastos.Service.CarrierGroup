@@ -232,6 +232,35 @@ int Carrier::sendMessage(const std::string& friendCode,
     return 0;
 }
 
+int Carrier::sendMessage(const std::string& friendCode,
+                         const std::string& message)
+{
+    std::vector<uint8_t> buf {message.begin(), message.end()};
+
+    int rc = sendMessage(friendCode, buf);
+    CHECK_ERROR(rc);
+
+    return rc;
+}
+
+int Carrier::getFriendNameById(const std::string& id, std::string& name)
+{
+    ElaFriendInfo info;
+    int rc = ela_get_friend_info(elaCarrierImpl.get(), id.c_str(), &info);
+    if(rc < 0) {
+        int elaErrCode;
+        std::string elaErrStr;
+        GetElaCarrierError(elaErrCode, elaErrStr);
+        Log::E(Log::TAG, "Failed to get carrier friend name from:%s! rc=%s(0x%x)",
+                         id.c_str(), elaErrStr.c_str(), elaErrCode);
+    }
+    CHECK_ASSERT(rc == 0, ErrCode::CarrierError);
+
+    name = info.user_info.name;
+
+    return 0;
+}
+
 
 
 /***********************************************/

@@ -10,5 +10,4 @@ target_link_libraries(carrier PRIVATE
     common
     elacarrier)
 
-add_dependencies(carrier
-    Elastos.NET.Carrier.Native.SDK)
+add_dependencies(carrier Elastos.NET.Carrier.Native.SDK)

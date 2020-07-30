@@ -24,7 +24,8 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit CmdListener(std::weak_ptr<Carrier> carrier);
+    explicit CmdListener(std::weak_ptr<Carrier> carrier,
+                         const std::string& dataDir);
     virtual ~CmdListener() = default;
 
     virtual void onError(int errCode) override;
@@ -33,14 +34,14 @@ public:
                                  Status status) override;
 
     virtual void onFriendRequest(const std::string& friendCode,
-                                    const std::string& summary) override;
+                                 const std::string& summary) override;
 
     virtual void onFriendStatusChanged(const std::string& friendCode,
-                                        Status status) override;
+                                       Status status) override;
 
     virtual void onReceivedMessage(const std::string& friendCode,
-                                   int64_t timestamp,
-                                   const std::vector<uint8_t>& message) override;
+                                    int64_t timestamp,
+                                    const std::vector<uint8_t>& message) override;
 
 protected:
     /*** type define ***/

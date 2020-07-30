@@ -9,4 +9,5 @@ target_include_directories(carrier.groupd PRIVATE
 target_link_libraries(carrier.groupd PRIVATE
     carrier
     common
-    json)
+    json
+    sqldb)

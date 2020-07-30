@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <vector>
+#include <Carrier.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
 
@@ -12,6 +13,7 @@ namespace elastos {
 /* =========================================== */
 std::shared_ptr<CmdParser> CmdParser::gCmdParser;
 std::recursive_mutex CmdParser::gMutex = {};
+const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 
 /* =========================================== */
 /* === static function implement ============= */
@@ -29,7 +31,7 @@ std::shared_ptr<CmdParser> CmdParser::GetInstance()
 
     struct Impl: CmdParser {
     };
-    auto gCmdParser = std::make_shared<Impl>();
+    gCmdParser = std::make_shared<Impl>();
 
     return gCmdParser;
 }
@@ -37,11 +39,16 @@ std::shared_ptr<CmdParser> CmdParser::GetInstance()
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
+void CmdParser::setStorageDir(const std::string& dir)
+{
+    dataDir = dir;
+}
+
 int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
                      const std::string& cmdline,
                      const std::string& controller, int64_t timestamp)
 {
-    // Log::D(Log::TAG, "%s cmdline=%s", __PRETTY_FUNCTION__, cmdline.c_str());
+    Log::D(Log::TAG, "%s cmdline=%s", __PRETTY_FUNCTION__, cmdline.c_str());
     std::string cmd;
     std::vector<std::string> args;
 
@@ -59,6 +66,11 @@ int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
         }
     } else {
         cmd = trimLine;
+    }
+
+    if(storage.isMounted() == false) {
+        int rc = storage.mount(dataDir);
+        CHECK_ERROR(rc);
     }
 
     int rc = dispatch(carrier, cmd, args, controller, timestamp);
@@ -103,6 +115,8 @@ int CmdParser::dispatch(const std::weak_ptr<Carrier>& carrier,
 /* === class private function implement  ===== */
 /* =========================================== */
 CmdParser::CmdParser()
+    : dataDir()
+    , storage()
 {
     using namespace std::placeholders;
 
@@ -132,17 +146,26 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
                       const std::string& controller, int64_t timestamp)
 {
     std::stringstream usage;
-        usage << "Usage:" << std::endl;
-    for(const auto& cmdInfo : cmdInfoList) {
-        if(cmdInfo.cmd == "-") {
-            usage << cmdInfo.usage << std::endl;
-        } else {
-            usage << "  " << cmdInfo.cmd <<  ": " << cmdInfo.usage << std::endl;
-        }
-    }
-    usage << std::endl;
 
-    // response = usage.str();
+    int rc = storage.isOwner(controller);
+    if(rc >= 0) {
+        usage << "Usage:" << std::endl;
+        for(const auto& cmdInfo : cmdInfoList) {
+            if(cmdInfo.cmd == "-") {
+                usage << cmdInfo.usage << std::endl;
+            } else {
+                usage << "  " << cmdInfo.cmd <<  ": " << cmdInfo.usage << std::endl;
+            }
+        }
+        usage << std::endl;
+    } else {
+        usage << PromptAccessForbidden;
+    }
+
+
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+    carrierPtr->sendMessage(controller, usage.str());
 
     return 0;
 }
@@ -151,7 +174,23 @@ int CmdParser::onRequestFriend(const std::weak_ptr<Carrier>& carrier,
                                const std::vector<std::string>& args,
                                const std::string& controller, int64_t timestamp)
 {
-    // response = Cmd::AllowFriend;
+    int rc = storage.accessible(controller);
+    if(rc < 0) {
+        Log::W(Log::TAG, "Unexpected member want join into group.");
+        CHECK_ERROR(ErrCode::CarrierUnexpectedRequest);
+    }
+
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    rc = carrierPtr->requestFriend(controller);
+    CHECK_ERROR(rc);
+
+    std::string friendName; 
+    rc = carrierPtr->getFriendNameById(controller, friendName);
+    CHECK_ERROR(rc);
+
+    storage.update(controller, timestamp, friendName);
 
     return 0;
 }

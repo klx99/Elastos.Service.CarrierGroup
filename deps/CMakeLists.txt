@@ -5,6 +5,8 @@ add_submodule(platform-specific)
 #     DEPENDS platform-specific)
 add_submodule(Elastos.NET.Carrier.Native.SDK
     DEPENDS platform-specific)
+add_submodule(SQLiteCpp
+    DEPENDS platform-specific)
 # add_submodule(sqlite
 #     DEPENDS platform-specific)
 # add_submodule(CUnit

@@ -40,14 +40,17 @@ public:
 
     virtual bool isReady();
 
-    virtual int requestFriend(const std::string& friendAddr,
-                              const std::string& summary);
+    virtual int requestFriend(const std::string& friendCode,
+                              const std::string& summary = "");
 
-    virtual int removeFriend(const std::string& friendAddr);
+    virtual int removeFriend(const std::string& friendCode);
 
     virtual int sendMessage(const std::string& friendCode,
                             const std::vector<uint8_t>& message);
+    virtual int sendMessage(const std::string& friendCode,
+                            const std::string& message);
 
+    virtual int getFriendNameById(const std::string& id, std::string& name);
 
 private:
     /*** type define ***/

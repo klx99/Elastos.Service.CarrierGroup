@@ -20,9 +20,11 @@ namespace elastos {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-CmdListener::CmdListener(std::weak_ptr<Carrier> carrier)
+CmdListener::CmdListener(std::weak_ptr<Carrier> carrier,
+                         const std::string& dataDir)
     : carrier(carrier)
 {
+    CmdParser::GetInstance()->setStorageDir(dataDir);
 }
 
 void CmdListener::onError(int errCode)
@@ -41,8 +43,6 @@ void CmdListener::onFriendRequest(const std::string& friendCode,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
     auto cmdline = CmdParser::Cmd::RequestFriend + " " + friendCode + " " + summary;
-    std::string response;
-
     int rc = CmdParser::GetInstance()->parse(carrier, 
                                              cmdline, friendCode, DateTime::CurrentMS());
     if(rc < 0) {

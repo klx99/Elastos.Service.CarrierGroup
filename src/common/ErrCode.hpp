@@ -85,6 +85,7 @@ public:
 	constexpr static const int ExpectedAfterStartedError = -20;
 	constexpr static const int SizeOverflowError = -21;
 	constexpr static const int NotExpectedReachedError = -22;
+    constexpr static const int NotMatchError = -23;
 
     constexpr static const int InvalidLocalDataDir = -50;
     constexpr static const int NoSecurityListener = -51;
@@ -109,6 +110,11 @@ public:
 	constexpr static const int CarrierFileTransBusy = -215;
 	constexpr static const int CarrierFailedReadData = -216;
 	constexpr static const int CarrierInvalidDataId = -217;
+    constexpr static const int CarrierUnexpectedRequest = -218;
+
+    constexpr static const int SqlDbError = -300;
+    constexpr static const int SqlDbNotMount = -301;
+    constexpr static const int SqlDbMultiMount = -301;
 
 	constexpr static const int AdditivityIndex = -1000;
 	constexpr static const int StdSystemErrorIndex = -1000;
