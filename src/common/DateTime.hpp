@@ -8,8 +8,7 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#ifndef _ELASTOS_DATETIME_HPP_
-#define _ELASTOS_DATETIME_HPP_
+#pragma once
 
 #include <chrono>
 #include <string>
@@ -31,7 +30,7 @@ public:
         struct tm *timeinfo  = std::localtime(&raw_time);
 
         char buf[24] = {0};
-        strftime(buf, 24, "%Y-%m-%d %H:%M:%S,", timeinfo);
+        strftime(buf, 24, "%Y-%m-%d %H:%M:%S.", timeinfo);
 
         std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch());
         std::string milliseconds_str =  std::to_string(ms.count() % 1000);
@@ -46,6 +45,31 @@ public:
         system_clock::time_point tp = system_clock::now();
         std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch());
         return now.count();
+    }
+
+    static int64_t CurrentNS() {
+        system_clock::time_point tp = system_clock::now();
+        std::chrono::nanoseconds now = std::chrono::duration_cast<std::chrono::nanoseconds>(tp.time_since_epoch());
+        return now.count();
+    }
+
+    static std::string MsToString(int64_t milliseconds) {
+        std::time_t raw_time = milliseconds;
+        struct tm *timeinfo  = std::localtime(&raw_time);
+
+        char buf[64] = {0};
+        strftime(buf, 24, "%Y-%m-%d %H:%M:%S.", timeinfo);
+
+        std::string milliseconds_str = std::to_string(milliseconds % 1000);
+        if(milliseconds_str.length() < 3) {
+            milliseconds_str = std::string(3 - milliseconds_str.length(), '0') + milliseconds_str;
+        }
+
+        return std::string(buf) + milliseconds_str;
+    }
+
+    static std::string NsToString(int64_t nanoseconds) {
+        return MsToString(nanoseconds / 1000000);
     }
 
     /*** class function and variable ***/
@@ -63,5 +87,3 @@ protected:
 }; // class DateTime
 
 } // namespace elastos
-
-#endif /* _ELASTOS_DATETIME_HPP_ */

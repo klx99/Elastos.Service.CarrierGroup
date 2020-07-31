@@ -12,7 +12,8 @@
 #define _ELASTOS_STORAGE_HPP_
 
 #include <memory>
-#include <mutex>
+#include <string>
+#include <vector>
 #include <SqlDB.hpp>
 
 namespace elastos {
@@ -20,9 +21,13 @@ namespace elastos {
 class Storage {
 public:
     /*** type define ***/
+    struct MessageInfo {
+        int64_t timestamp;
+        std::string sender;
+        std::string content;
+    };
 
     /*** static function and variable ***/
-    static std::shared_ptr<Storage> GetInstance();
 
     /*** class function and variable ***/
     explicit Storage() = default;
@@ -32,13 +37,23 @@ public:
     int unmount();
     int isMounted();
 
+    int64_t uptime(const std::string& userId);
+
     int isOwner(const std::string& userId);
     int accessible(const std::string& userId);
 
-    int update(const std::string& userId,
-               int64_t timestamp,
-               const std::string& name,
-               const std::string& status = "");
+    int updateMember(const std::string& userId,
+                     int64_t uptime,
+                     const std::string& name,
+                     const std::string& status = "");
+    int updateMember(const std::string& userId,
+                     int64_t uptime);
+
+    int updateMessage(const MessageInfo& info);
+
+    int findMessages(int64_t startTime, int count,
+                     const std::string& ignoreId,
+                     std::vector<MessageInfo>& list);
 
 protected:
     /*** type define ***/
@@ -49,12 +64,11 @@ protected:
 
 private:
     /*** type define ***/
-    struct Sql {
-        static const std::string CreateTable;
-        static const std::string Update;
-        static const std::string Count;
-    };
     struct TableName {
+        static const std::string Member;
+        static const std::string Message;
+    };
+    struct Column {
         static const std::string Member;
         static const std::string Message;
     };
@@ -64,11 +78,24 @@ private:
     };
 
     /*** static function and variable ***/
-    static std::recursive_mutex gMutex;
-    static std::shared_ptr<Storage> gStorage;
-    static const std::string gStorageName;
+    static const std::string StorageName;
+    static const int StorageMessageSize;
 
     /*** class function and variable ***/
+    std::string makeCreateSql(const std::string& table,
+                              const std::string& columns,
+                              const std::vector<std::string>& props);
+    std::string makeUpdateSql(const std::string& table,
+                              const std::string& columns,
+                              const std::string& values,
+                              const std::string& check = {},
+                              const std::vector<std::string>& updates = {});
+    std::string makeQuerySql(const std::string& table,
+                             const std::string& columns,
+                             const std::vector<std::string>& conditions,
+                             const std::string& order = {},
+                             int limit = 0);
+
     std::shared_ptr<SqlDB::Database> database;
 
 }; // class Storage

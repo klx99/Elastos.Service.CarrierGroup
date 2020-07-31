@@ -42,9 +42,9 @@ void CmdListener::onFriendRequest(const std::string& friendCode,
                                   const std::string& summary)
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
-    auto cmdline = CmdParser::Cmd::RequestFriend + " " + friendCode + " " + summary;
+    auto cmdline = CmdParser::Cmd::AddFriend + " " + friendCode + " " + summary;
     int rc = CmdParser::GetInstance()->parse(carrier, 
-                                             cmdline, friendCode, DateTime::CurrentMS());
+                                             cmdline, friendCode, 0);
     if(rc < 0) {
         onError(rc);
         return;
@@ -61,7 +61,7 @@ void CmdListener::onFriendStatusChanged(const std::string& friendCode,
     if(status == Status::Online) {
         int rc = CmdParser::GetInstance()->parse(carrier,
                                                  CmdParser::Cmd::ForwardMessage,
-                                                 friendCode, DateTime::CurrentMS());
+                                                 friendCode, DateTime::CurrentNS());
         CHECK_RETVAL(rc);
     }
 }
@@ -72,7 +72,13 @@ void CmdListener::onReceivedMessage(const std::string& friendCode,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    std::string cmdline = {message.begin(), message.end()};
+    std::string cmdline = std::string{message.begin(), message.end()};
+    if(cmdline == "{\"command\":\"messageSeen\"}") { // ignore hyper return receipt
+        // return;
+    }
+    if(cmdline.find_first_of('/') != 0) { // if not a command, exec as forward.
+        cmdline = CmdParser::Cmd::ForwardMessage + " " + cmdline;
+    }
 
     int rc = CmdParser::GetInstance()->parse(carrier,
                                              cmdline, friendCode, timestamp);

@@ -40,8 +40,8 @@ public:
 
     virtual bool isReady();
 
-    virtual int requestFriend(const std::string& friendCode,
-                              const std::string& summary = "");
+    virtual int addFriend(const std::string& friendCode,
+                          const std::string& summary = "");
 
     virtual int removeFriend(const std::string& friendCode);
 
@@ -49,13 +49,18 @@ public:
                             const std::vector<uint8_t>& message);
     virtual int sendMessage(const std::string& friendCode,
                             const std::string& message);
+    virtual int sendMessage(const std::string& friendCode,
+                            const std::string_view& message);
 
     virtual int getFriendNameById(const std::string& id, std::string& name);
+
+    virtual int getFriendList(bool onlineOnly, std::vector<std::string>& list);
 
 private:
     /*** type define ***/
 
     /*** static function and variable ***/
+    static bool ElaFriendsIterateCallback(const ElaFriendInfo *info, void *context);
     static void GetElaCarrierError(int& errCode, std::string& errStr);
     static void OnCarrierConnection(ElaCarrier *carrier,
                                     ElaConnectionStatus status, void *context);

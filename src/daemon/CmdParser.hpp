@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <Storage.hpp>
+#include <ThreadPool.hpp>
 
 namespace elastos {
 
@@ -26,11 +27,10 @@ public:
     /*** type define ***/
     struct Cmd {
         inline static const std::string Help = "/help";
-        inline static const std::string RequestFriend = "/request";
+        inline static const std::string AddFriend = "/add";
         inline static const std::string AllowFriend = "/allow";
         inline static const std::string InviteFriend = "/invite";
         inline static const std::string ForwardMessage = "/forward";
-        inline static const std::string RelayMessage = "/relay";
     };
 
     /*** static function and variable ***/
@@ -60,28 +60,38 @@ private:
                               const std::string&, int64_t);
         std::string cmd;
         std::function<Processor> func;
-        // std::function<void(int64_t, int64_t)> func;
         std::string usage;
     };
 
     /*** static function and variable ***/
-    static std::recursive_mutex gMutex;
-    static std::shared_ptr<CmdParser> gCmdParser;
+    static std::recursive_mutex CmdMutex;
+    static std::shared_ptr<CmdParser> CmdParserInstance;
     static const std::string PromptAccessForbidden;
+    static const std::string PromptBadCommand;
 
     /*** class function and variable ***/
     explicit CmdParser();
     virtual ~CmdParser() = default;
 
+    int onUnimplemented(const std::weak_ptr<Carrier>& carrier,
+                        const std::vector<std::string>& args,
+                        const std::string& controller, int64_t timestamp);
     int onHelp(const std::weak_ptr<Carrier>& carrier,
                const std::vector<std::string>& args,
                const std::string& controller, int64_t timestamp);
-    int onRequestFriend(const std::weak_ptr<Carrier>& carrier,
-                        const std::vector<std::string>& args,
-                        const std::string& controller, int64_t timestamp);
+    int onAddFriend(const std::weak_ptr<Carrier>& carrier,
+                    const std::vector<std::string>& args,
+                    const std::string& controller, int64_t timestamp);
+    int onForwardMessage(const std::weak_ptr<Carrier>& carrier,
+                         const std::vector<std::string>& args,
+                         const std::string& controller, int64_t timestamp);
+    
+    int forwardMsgToAllFriends(const std::weak_ptr<Carrier>& carrier);
+    int forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier, const std::string& friendId);
 
     std::string trim(const std::string &str);
 
+    std::unique_ptr<ThreadPool> taskThread;
     std::string dataDir;
     Storage storage;
     std::vector<CommandInfo> cmdInfoList;

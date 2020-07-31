@@ -7,6 +7,7 @@
 
 #include "Carrier.hpp"
 
+#include <functional>
 #include <sstream>
 
 #include <ela_carrier.h>
@@ -146,8 +147,8 @@ bool Carrier::isReady()
     return (status == CarrierHandler::Status::Online);
 }
 
-int Carrier::requestFriend(const std::string& friendCode,
-                           const std::string& summary)
+int Carrier::addFriend(const std::string& friendCode,
+                       const std::string& summary)
 {
     std::string selfAddr, selfUsrId;
     getAddress(selfAddr);
@@ -163,10 +164,10 @@ int Carrier::requestFriend(const std::string& friendCode,
     if(isAddr == true) {
         const char* hello = (summary.empty() ? " " : summary.c_str());
 
-        Log::I(Log::TAG, "Carrier::requestFriend() friendCode=%s summary=%s", friendCode.c_str(), hello);
+        Log::I(Log::TAG, "Carrier::addFriend() friendCode=%s summary=%s", friendCode.c_str(), hello);
         rc = ela_add_friend(elaCarrierImpl.get(), friendCode.c_str(), hello);
     } else if(isUserId == true) {
-        Log::I(Log::TAG, "Carrier::requestFriend() friendCode=%s", friendCode.c_str());
+        Log::I(Log::TAG, "Carrier::addFriend() friendCode=%s", friendCode.c_str());
         rc = ela_accept_friend(elaCarrierImpl.get(), friendCode.c_str());
     }
     if(rc != 0) {
@@ -178,7 +179,7 @@ int Carrier::requestFriend(const std::string& friendCode,
         }
         Log::E(Log::TAG, "Failed to add/accept friend! rc=%s(0x%x)", elaErrStr.c_str(), elaErrCode);
     }
-    CHECK_ASSERT(rc == 0, ErrCode::CarrierRequestFriendFailed);
+    CHECK_ASSERT(rc == 0, ErrCode::CarrierAddFriendFailed);
 
     return 0;
 }
@@ -243,6 +244,17 @@ int Carrier::sendMessage(const std::string& friendCode,
     return rc;
 }
 
+int Carrier::sendMessage(const std::string& friendCode,
+                         const std::string_view& message)
+{
+    std::vector<uint8_t> buf {message.begin(), message.end()};
+
+    int rc = sendMessage(friendCode, buf);
+    CHECK_ERROR(rc);
+
+    return rc;
+}
+
 int Carrier::getFriendNameById(const std::string& id, std::string& name)
 {
     ElaFriendInfo info;
@@ -261,6 +273,33 @@ int Carrier::getFriendNameById(const std::string& id, std::string& name)
     return 0;
 }
 
+int Carrier::getFriendList(bool onlineOnly, std::vector<std::string>& list)
+{
+    list.clear();
+    auto callback = std::make_shared<std::function<void(const char*, ElaConnectionStatus)>>([&](const char* friendId, ElaConnectionStatus status) {
+        if(onlineOnly == true
+        && status != ElaConnectionStatus_Connected) {
+            return;
+        }
+
+        list.push_back(friendId);
+    });
+
+    int rc = ela_get_friends(elaCarrierImpl.get(), ElaFriendsIterateCallback, callback.get());
+
+    if(rc < 0) {
+        list.clear();
+
+        int elaErrCode;
+        std::string elaErrStr;
+        GetElaCarrierError(elaErrCode, elaErrStr);
+        Log::E(Log::TAG, "Failed to get carrier friend list! rc=%s(0x%x)",
+                         elaErrStr.c_str(), elaErrCode);
+    }
+    CHECK_ASSERT(rc == 0, ErrCode::CarrierError);
+
+    return 0;
+}
 
 
 /***********************************************/
@@ -271,6 +310,18 @@ int Carrier::getFriendNameById(const std::string& id, std::string& name)
 /***********************************************/
 /***** class private function implement  *******/
 /***********************************************/
+bool Carrier::ElaFriendsIterateCallback(const ElaFriendInfo *info, void *context)
+{
+    if(info == nullptr) {
+        return 0;
+    }
+
+    auto callback = reinterpret_cast<std::function<void(const char*, ElaConnectionStatus)>*>(context);
+    (*callback)(info->user_info.userid, info->status);
+
+    return true;
+}
+
 void Carrier::GetElaCarrierError(int& errCode, std::string& errStr)
 {
     errCode = ela_get_error();

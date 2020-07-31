@@ -39,6 +39,8 @@ ThreadPool::ThreadPool(const std::string& threadName, size_t threadCnt)
 
 ThreadPool::~ThreadPool()
 {
+    Log::D(Log::TAG, "%s name:%s", FORMAT_METHOD, mThreadName.c_str());
+
 	std::unique_lock<std::mutex> lock(mMutex);
 	mQuit = true;
     auto empty = std::queue<Task>();
@@ -57,8 +59,6 @@ ThreadPool::~ThreadPool()
 		}
 	}
     mThreadPool.clear();
-
-    Log::D(Log::TAG, "%s name:%s", FORMAT_METHOD, mThreadName.c_str());
 }
 
 int ThreadPool::sleepMS(long milliSecond)

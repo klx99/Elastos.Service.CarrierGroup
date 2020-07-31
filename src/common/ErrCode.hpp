@@ -11,7 +11,7 @@ public:
     /*** type define ***/
 #define CHECK_ERROR(errCode) \
 	if((errCode) < 0) { \
-	    int errRet = (errCode); \
+	    int errRet = static_cast<int>(errCode); \
 		APPEND_SRCLINE(errRet); \
 		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
 		return errRet; \
@@ -19,7 +19,7 @@ public:
 
 #define CHECK_RETVAL(errCode) \
 	if(errCode < 0) { \
-	    int errRet = errCode; \
+	    int errRet = static_cast<int>(errCode); \
 		APPEND_SRCLINE(errRet); \
 		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
         return; \
@@ -32,7 +32,7 @@ public:
 
 #define CHECK_AND_RETDEF(errCode, def) \
 	if(errCode < 0) { \
-	    int errRet = errCode; \
+	    int errRet = static_cast<int>(errCode); \
 		APPEND_SRCLINE(errRet); \
 		Log::E(Log::TAG, "Failed to call %s in line %d, return %d.", FORMAT_METHOD, __LINE__, errRet); \
 		return def; \
@@ -40,7 +40,7 @@ public:
 
 #define CHECK_AND_NOTIFY_ERROR(errCode) \
 	if(errCode < 0) { \
-	    int errRet = errCode; \
+	    int errRet = static_cast<int>(errCode); \
 		APPEND_SRCLINE(errRet); \
 		elastos::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
 	} \
@@ -48,7 +48,7 @@ public:
 
 #define CHECK_AND_NOTIFY_RETVAL(errCode) \
 	if(errCode < 0) { \
-	    int errRet = errCode; \
+	    int errRet = static_cast<int>(errCode); \
 		APPEND_SRCLINE(errRet); \
 		elastos::ErrCode::SetError(errRet, std::string(FORMAT_METHOD) + " line:" + std::to_string(__LINE__)); \
 	} \
@@ -96,7 +96,7 @@ public:
     constexpr static const int CarrierBadOptions = -201;
     constexpr static const int CarrierMultiConfigError = -202;
     constexpr static const int CarrierCreateFailed = -203;
-    constexpr static const int CarrierRequestFriendFailed = -204;
+    constexpr static const int CarrierAddFriendFailed = -204;
     constexpr static const int CarrierRemoveFriendFailed = -205;
     constexpr static const int CarrierFriendExists = -206;
     constexpr static const int CarrierFriendSelf = -207;
