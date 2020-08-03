@@ -24,6 +24,12 @@ namespace elastos {
 /***********************************************/
 /***** static function implement ***************/
 /***********************************************/
+bool Carrier::CheckAddress(const std::string& address)
+{
+    bool valid = ela_address_is_valid(address.c_str());
+    return valid;
+}
+
 int Carrier::GetUsrIdByAddress(const std::string& address, std::string& usrId)
 {
     char buf[ELA_MAX_ID_LEN + 1] = {0};

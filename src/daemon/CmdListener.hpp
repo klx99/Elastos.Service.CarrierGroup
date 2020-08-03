@@ -40,8 +40,8 @@ public:
                                        Status status) override;
 
     virtual void onReceivedMessage(const std::string& friendCode,
-                                    int64_t timestamp,
-                                    const std::vector<uint8_t>& message) override;
+                                   int64_t timestamp,
+                                   const std::vector<uint8_t>& message) override;
 
 protected:
     /*** type define ***/

@@ -72,14 +72,17 @@ void CmdListener::onReceivedMessage(const std::string& friendCode,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    std::string cmdline = std::string{message.begin(), message.end()};
-    if(cmdline == "{\"command\":\"messageSeen\"}") { // ignore hyper return receipt
-        // return;
+    auto data = reinterpret_cast<const char*>(message.data());
+    std::string cmdline = std::string{data};
+
+    // ignore hyper return receipt
+    if(cmdline == "{\"command\":\"messageSeen\"}") {
+        return;
     }
+
     if(cmdline.find_first_of('/') != 0) { // if not a command, exec as forward.
         cmdline = CmdParser::Cmd::ForwardMessage + " " + cmdline;
     }
-
     int rc = CmdParser::GetInstance()->parse(carrier,
                                              cmdline, friendCode, timestamp);
     CHECK_RETVAL(rc);

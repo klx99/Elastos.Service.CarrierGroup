@@ -18,6 +18,7 @@ std::recursive_mutex CmdParser::CmdMutex = {};
 const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 const std::string CmdParser::PromptBadCommand = "Bad Command!"
                                                 "\nPlease use '/help' to get usage of all commands.";
+const std::string CmdParser::PromptBadArguments = "Bad Arguments!";
 
 /* =========================================== */
 /* === static function implement ============= */
@@ -58,10 +59,16 @@ int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
 
     auto trimLine = trim(cmdline);
     int cmdIndex = trimLine.find(' ');
+    if(cmdIndex == std::string::npos) {
+        cmdIndex =  trimLine.find(':');
+    }
     if(cmdIndex > 0) {
         cmd = trimLine.substr(0, cmdIndex);
         auto argsLine = trimLine.substr(cmdIndex + 1);
         int argIndex = argsLine.find(' ');
+        if(cmdIndex == std::string::npos) {
+            argIndex = argsLine.find(':');
+        }
         if(argIndex > 0) {
             args.push_back(argsLine.substr(0, argIndex));
             args.push_back(argsLine.substr(argIndex + 1));
@@ -139,10 +146,10 @@ CmdParser::CmdParser()
             Cmd::AddFriend,
             std::bind(&CmdParser::onAddFriend, this, _1, _2, _3, _4),
             "[" + Cmd::AddFriend + "] Received a friend request."
-        // }, {
-        //     Cmd::InviteFriend,
-        //     std::bind(&CmdParser::onInviteFriend, this, _1, _2, _3),
-        //     "[" + Cmd::InviteFriend + "] Invite a friend into group."
+        }, {
+            Cmd::InviteFriend,
+            std::bind(&CmdParser::onInviteFriend, this, _1, _2, _3, _4),
+            "[" + Cmd::InviteFriend + " address (brief)] Invite a friend into group."
         }, {
             Cmd::ForwardMessage,
             std::bind(&CmdParser::onForwardMessage, this, _1, _2, _3, _4),
@@ -158,10 +165,10 @@ int CmdParser::onUnimplemented(const std::weak_ptr<Carrier>& carrier,
     std::string_view response;
 
     int rc = storage.isOwner(controller);
-    if(rc >= 0) {
-        response = PromptBadCommand;
-    } else {
+    if(rc < 0) {
         response = PromptAccessForbidden;
+    } else {
+        response = PromptBadCommand;
     }
 
     auto carrierPtr = carrier.lock();
@@ -178,7 +185,9 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
     std::stringstream usage;
 
     int rc = storage.isOwner(controller);
-    if(rc >= 0) {
+    if(rc < 0) {
+        usage << PromptAccessForbidden;
+    } else {
         usage << "Usage:" << std::endl;
         for(const auto& cmdInfo : cmdInfoList) {
             if(cmdInfo.cmd == "-") {
@@ -188,8 +197,6 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
             }
         }
         usage << std::endl;
-    } else {
-        usage << PromptAccessForbidden;
     }
 
     auto carrierPtr = carrier.lock();
@@ -213,6 +220,46 @@ int CmdParser::onAddFriend(const std::weak_ptr<Carrier>& carrier,
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
 
     rc = carrierPtr->addFriend(controller);
+    CHECK_ERROR(rc);
+
+    std::string friendName; 
+    rc = carrierPtr->getFriendNameById(controller, friendName);
+    CHECK_ERROR(rc);
+
+    storage.updateMember(controller, timestamp, friendName);
+
+    return 0;
+}
+
+int CmdParser::onInviteFriend(const std::weak_ptr<Carrier>& carrier,
+                              const std::vector<std::string>& args,
+                              const std::string& controller, int64_t timestamp)
+{
+    int rc = storage.accessible(controller);
+    if(rc < 0) {
+        Log::W(Log::TAG, "Unexpected member want invite member into group.");
+        CHECK_ERROR(ErrCode::CarrierUnexpectedRequest);
+    }
+
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    if(args.size() < 1) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+    const auto address = args[0];
+    std::string brief = "Hello!";
+    if(args.size() >= 2) {
+        brief = args[1];
+    }
+
+    if(Carrier::CheckAddress(address) == false) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+
+    rc = carrierPtr->addFriend(address, brief);
     CHECK_ERROR(rc);
 
     std::string friendName; 
@@ -282,7 +329,7 @@ int CmdParser::forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier,
 
     do {
         std::vector<Storage::MessageInfo> msgList;
-        found = storage.findMessages(uptime, 10, friendId + "TODO: test", msgList);
+        found = storage.findMessages(uptime, 10, friendId, msgList);
         CHECK_ERROR(found);
 
         for(auto& info: msgList) {

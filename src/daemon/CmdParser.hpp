@@ -68,6 +68,7 @@ private:
     static std::shared_ptr<CmdParser> CmdParserInstance;
     static const std::string PromptAccessForbidden;
     static const std::string PromptBadCommand;
+    static const std::string PromptBadArguments;
 
     /*** class function and variable ***/
     explicit CmdParser();
@@ -82,6 +83,9 @@ private:
     int onAddFriend(const std::weak_ptr<Carrier>& carrier,
                     const std::vector<std::string>& args,
                     const std::string& controller, int64_t timestamp);
+    int onInviteFriend(const std::weak_ptr<Carrier>& carrier,
+                       const std::vector<std::string>& args,
+                       const std::string& controller, int64_t timestamp);
     int onForwardMessage(const std::weak_ptr<Carrier>& carrier,
                          const std::vector<std::string>& args,
                          const std::string& controller, int64_t timestamp);

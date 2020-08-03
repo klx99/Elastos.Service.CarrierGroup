@@ -111,6 +111,7 @@ public:
 	constexpr static const int CarrierFailedReadData = -216;
 	constexpr static const int CarrierInvalidDataId = -217;
     constexpr static const int CarrierUnexpectedRequest = -218;
+    constexpr static const int CarrierBadAddress = -218;
 
     constexpr static const int SqlDbError = -300;
     constexpr static const int SqlDbNotMount = -301;

@@ -25,6 +25,7 @@ public:
     /*** type define ***/
 
     /*** static function and variable ***/
+    static bool CheckAddress(const std::string& address);
     static int GetUsrIdByAddress(const std::string& address, std::string& usrId);
 
     /*** class function and variable ***/
