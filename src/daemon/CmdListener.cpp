@@ -20,11 +20,9 @@ namespace elastos {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-CmdListener::CmdListener(std::weak_ptr<Carrier> carrier,
-                         const std::string& dataDir)
+CmdListener::CmdListener(std::weak_ptr<Carrier> carrier)
     : carrier(carrier)
 {
-    CmdParser::GetInstance()->setStorageDir(dataDir);
 }
 
 void CmdListener::onError(int errCode)
@@ -42,7 +40,7 @@ void CmdListener::onFriendRequest(const std::string& friendCode,
                                   const std::string& summary)
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
-    auto cmdline = CmdParser::Cmd::AddFriend + " " + friendCode + " " + summary;
+    auto cmdline = CmdParser::Cmd::Grp::AddFriend + " " + friendCode + " " + summary;
     int rc = CmdParser::GetInstance()->parse(carrier, 
                                              cmdline, friendCode, 0);
     if(rc < 0) {
@@ -60,7 +58,7 @@ void CmdListener::onFriendStatusChanged(const std::string& friendCode,
 
     if(status == Status::Online) {
         int rc = CmdParser::GetInstance()->parse(carrier,
-                                                 CmdParser::Cmd::ForwardMessage,
+                                                 CmdParser::Cmd::Grp::ForwardMessage,
                                                  friendCode, DateTime::CurrentNS());
         CHECK_RETVAL(rc);
     }
@@ -81,7 +79,7 @@ void CmdListener::onReceivedMessage(const std::string& friendCode,
     }
 
     if(cmdline.find_first_of('/') != 0) { // if not a command, exec as forward.
-        cmdline = CmdParser::Cmd::ForwardMessage + " " + cmdline;
+        cmdline = CmdParser::Cmd::Grp::ForwardMessage + " " + cmdline;
     }
     int rc = CmdParser::GetInstance()->parse(carrier,
                                              cmdline, friendCode, timestamp);

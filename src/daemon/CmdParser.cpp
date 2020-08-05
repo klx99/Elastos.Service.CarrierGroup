@@ -4,9 +4,12 @@
 #include <sstream>
 #include <vector>
 #include <Carrier.hpp>
+#include <CompatibleFileSystem.hpp>
 #include <DateTime.hpp>
 #include <ErrCode.hpp>
 #include <Log.hpp>
+#include <OptParser.hpp>
+#include <Process.hpp>
 
 namespace elastos {
 
@@ -15,6 +18,8 @@ namespace elastos {
 /* =========================================== */
 std::shared_ptr<CmdParser> CmdParser::CmdParserInstance;
 std::recursive_mutex CmdParser::CmdMutex = {};
+const std::string CmdParser::CarrierAddressName = "carrier-address";
+
 const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 const std::string CmdParser::PromptBadCommand = "Bad Command!"
                                                 "\nPlease use '/help' to get usage of all commands.";
@@ -45,9 +50,11 @@ std::shared_ptr<CmdParser> CmdParser::GetInstance()
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-void CmdParser::setStorageDir(const std::string& dir)
+CmdParser::CmdParser()
+    : taskThread(std::make_unique<ThreadPool>("parser-thread"))
 {
-    dataDir = dir;
+    bool isManager = OptParser::GetInstance()->isManager();
+    cmdInfoList = std::move(getCmdInfoList(isManager));
 }
 
 int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
@@ -81,12 +88,11 @@ int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
     }
 
     if(storage.isMounted() == false) {
-        int rc = storage.mount(dataDir);
+        int rc = storage.mount(OptParser::GetInstance()->getDataDir());
         CHECK_ERROR(rc);
     }
 
-    int rc = dispatch(carrier, cmd, args, controller, timestamp);
-    CHECK_ERROR(rc);
+    taskThread->post(std::bind(&CmdParser::dispatch, this, carrier, cmd, args, controller, timestamp));
 
     return 0;
 }
@@ -141,46 +147,11 @@ int CmdParser::dispatch(const std::weak_ptr<Carrier>& carrier,
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
-CmdParser::CmdParser()
-    : taskThread(std::make_unique<ThreadPool>("parser-thread"))
-    , dataDir()
-    , storage()
+int CmdParser::onIgnore(const std::weak_ptr<Carrier>& carrier,
+                        const std::vector<std::string>& args,
+                        const std::string& controller, int64_t timestamp)
 {
-    using namespace std::placeholders;
-
-    cmdInfoList = std::vector<CommandInfo>{
-        {
-            Cmd::Help,
-            CommandInfo::Performer::Admin,
-            std::bind(&CmdParser::onHelp, this, _1, _2, _3, _4),
-            "[" + Cmd::Help + "] Print help usages."
-        }, {
-            Cmd::ListFriend,
-            CommandInfo::Performer::Admin,
-            std::bind(&CmdParser::onListFriend, this, _1, _2, _3, _4),
-            "[" + Cmd::ListFriend + "] List all friends."
-        }, {
-            Cmd::AddFriend,
-            CommandInfo::Performer::Anyone,
-            std::bind(&CmdParser::onAddFriend, this, _1, _2, _3, _4),
-            "[" + Cmd::AddFriend + "] Received a friend request."
-        }, {
-            Cmd::InviteFriend,
-            CommandInfo::Performer::Admin,
-            std::bind(&CmdParser::onInviteFriend, this, _1, _2, _3, _4),
-            "[" + Cmd::InviteFriend + " address (brief)] Invite a friend into group."
-        }, {
-            Cmd::KickFriend,
-            CommandInfo::Performer::Admin,
-            std::bind(&CmdParser::onKickFriend, this, _1, _2, _3, _4),
-            "[" + Cmd::KickFriend + " id] Kick a friend from group."
-        }, {
-            Cmd::ForwardMessage,
-            CommandInfo::Performer::Member,
-            std::bind(&CmdParser::onForwardMessage, this, _1, _2, _3, _4),
-            "[" + Cmd::ForwardMessage + "] Forward message to all online peer."
-        },
-    };
+    return 0;
 }
 
 int CmdParser::onUnimplemented(const std::weak_ptr<Carrier>& carrier,
@@ -203,7 +174,9 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
 
     usage << "Usage:" << std::endl;
     for(const auto& cmdInfo : cmdInfoList) {
-        if(cmdInfo.cmd == "-") {
+        if(cmdInfo.usage == "") {
+            continue;
+        } else if(cmdInfo.cmd == "-") {
             usage << cmdInfo.usage << std::endl;
         } else {
             usage << "  " << cmdInfo.cmd <<  ": " << cmdInfo.usage << std::endl;
@@ -214,6 +187,32 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
     int rc = carrierPtr->sendMessage(controller, usage.str());
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int CmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
+                          const std::vector<std::string>& args,
+                          const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    if(args.size() < 1) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+    const auto& groupName = args[0];
+    
+    auto groupDataDir = std::filesystem::canonical(OptParser::GetInstance()->getDataDir());
+    groupDataDir.append(controller).append(std::to_string(timestamp));
+    std::vector<std::string> groupArgs = {
+        "--group",
+        std::string("--") + OptParser::OptName::DataDir + "=" + groupDataDir.string(),
+    };
+
+    int rc = Process::Exec(OptParser::GetInstance()->getExecPath(), groupArgs);
     CHECK_ERROR(rc);
 
     return 0;
@@ -271,7 +270,7 @@ int CmdParser::onInviteFriend(const std::weak_ptr<Carrier>& carrier,
         carrierPtr->sendMessage(controller, PromptBadArguments);
         CHECK_ERROR(ErrCode::InvalidArgument);
     }
-    const auto address = args[0];
+    const auto& address = args[0];
     std::string brief = "Hello!";
     if(args.size() >= 2) {
         brief = args[1];
@@ -310,7 +309,7 @@ int CmdParser::onKickFriend(const std::weak_ptr<Carrier>& carrier,
         carrierPtr->sendMessage(controller, PromptBadArguments);
         CHECK_ERROR(ErrCode::InvalidArgument);
     }
-    const auto memberId = args[0];
+    const auto& memberId = args[0];
 
     carrierPtr->sendMessage(memberId, PromptKicked); // ignore return value
 
@@ -333,7 +332,8 @@ int CmdParser::onForwardMessage(const std::weak_ptr<Carrier>& carrier,
         CHECK_ERROR(rc);
     }
 
-    taskThread->post(std::bind(&CmdParser::forwardMsgToAllFriends, this, carrier));
+    int rc = forwardMsgToAllFriends(carrier);
+    CHECK_ERROR(rc);
 
     return 0;
 }
@@ -420,6 +420,69 @@ int CmdParser::forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier,
     CHECK_ERROR(rc);
 
     return 0;
+}
+
+std::vector<CmdParser::CommandInfo> CmdParser::getCmdInfoList(bool isManager)
+{
+    using namespace std::placeholders;
+    std::vector<CommandInfo> cmdInfoList;
+
+    if(isManager == true) {
+        cmdInfoList = {
+            {
+                Cmd::Help,
+                CommandInfo::Performer::Anyone,
+                std::bind(&CmdParser::onHelp, this, _1, _2, _3, _4),
+                "[" + Cmd::Help + "] Print help usages."
+            }, {
+                Cmd::Mgr::NewGroup,
+                CommandInfo::Performer::Anyone,
+                std::bind(&CmdParser::onNewGroup, this, _1, _2, _3, _4),
+                "[" + Cmd::Mgr::NewGroup + " groupname] New a new group."
+            }, {
+                Cmd::Grp::ForwardMessage, // fix online forward issue
+                CommandInfo::Performer::Anyone,
+                std::bind(&CmdParser::onIgnore, this, _1, _2, _3, _4),
+                ""
+            },
+        };
+    } else {
+        cmdInfoList = {
+            {
+                Cmd::Help,
+                CommandInfo::Performer::Admin,
+                std::bind(&CmdParser::onHelp, this, _1, _2, _3, _4),
+                "[" + Cmd::Help + "] Print help usages."
+            }, {
+                Cmd::Grp::ListFriend,
+                CommandInfo::Performer::Admin,
+                std::bind(&CmdParser::onListFriend, this, _1, _2, _3, _4),
+                "[" + Cmd::Grp::ListFriend + "] List all friends."
+            }, {
+                Cmd::Grp::AddFriend,
+                CommandInfo::Performer::Anyone,
+                std::bind(&CmdParser::onAddFriend, this, _1, _2, _3, _4),
+                "[" + Cmd::Grp::AddFriend + "] Received a friend request."
+            }, {
+                Cmd::Grp::InviteFriend,
+                CommandInfo::Performer::Admin,
+                std::bind(&CmdParser::onInviteFriend, this, _1, _2, _3, _4),
+                "[" + Cmd::Grp::InviteFriend + " address (brief)] Invite a friend into group."
+            }, {
+                Cmd::Grp::KickFriend,
+                CommandInfo::Performer::Admin,
+                std::bind(&CmdParser::onKickFriend, this, _1, _2, _3, _4),
+                "[" + Cmd::Grp::KickFriend + " id] Kick a friend from group."
+            }, {
+                Cmd::Grp::ForwardMessage,
+                CommandInfo::Performer::Member,
+                std::bind(&CmdParser::onForwardMessage, this, _1, _2, _3, _4),
+                "[" + Cmd::Grp::ForwardMessage + "] Forward message to all online peer."
+            },
+        };
+    }
+
+    return cmdInfoList;
 }
 
 std::string CmdParser::trim(const std::string &str)

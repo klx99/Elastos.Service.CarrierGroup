@@ -8,7 +8,8 @@
  * @copyright	(c) 2012 xxx All rights reserved.
  **/
 
-#pragma once
+#ifndef _ELASTOS_DATETIME_HPP_
+#define _ELASTOS_DATETIME_HPP_
 
 #include <chrono>
 #include <string>
@@ -87,3 +88,5 @@ protected:
 }; // class DateTime
 
 } // namespace elastos
+
+#endif // _ELASTOS_DATETIME_HPP_

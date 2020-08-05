@@ -11,6 +11,7 @@
 #ifndef _ELASTOS_CMD_LISTENER_HPP_
 #define _ELASTOS_CMD_LISTENER_HPP_
 
+#include <vector>
 #include <CarrierHandler.hpp>
 
 namespace elastos {
@@ -24,8 +25,7 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit CmdListener(std::weak_ptr<Carrier> carrier,
-                         const std::string& dataDir);
+    explicit CmdListener(std::weak_ptr<Carrier> carrier);
     virtual ~CmdListener() = default;
 
     virtual void onError(int errCode) override;

@@ -27,19 +27,23 @@ public:
     /*** type define ***/
     struct Cmd {
         inline static const std::string Help = "/help";
-        inline static const std::string ListFriend = "/list";
-        inline static const std::string AddFriend = "/add";
-        // inline static const std::string AllowFriend = "/allow";
-        inline static const std::string InviteFriend = "/invite";
-        inline static const std::string KickFriend = "/kick";
-        inline static const std::string ForwardMessage = "/forward";
+        struct Mgr {
+            inline static const std::string NewGroup = "/new";
+        };
+        struct Grp {
+            inline static const std::string ListFriend = "/list";
+            inline static const std::string AddFriend = "/add";
+            // inline static const std::string AllowFriend = "/allow";
+            inline static const std::string InviteFriend = "/invite";
+            inline static const std::string KickFriend = "/kick";
+            inline static const std::string ForwardMessage = "/forward";
+        };
     };
 
     /*** static function and variable ***/
     static std::shared_ptr<CmdParser> GetInstance();
 
     /*** class function and variable ***/
-    void setStorageDir(const std::string& dir);
     int parse(const std::weak_ptr<Carrier>& carrier,
               const std::string& cmdline,
               const std::string& controller, int64_t timestamp);
@@ -76,6 +80,8 @@ private:
     /*** static function and variable ***/
     static std::recursive_mutex CmdMutex;
     static std::shared_ptr<CmdParser> CmdParserInstance;
+    static const std::string CarrierAddressName;
+
     static const std::string PromptAccessForbidden;
     static const std::string PromptBadCommand;
     static const std::string PromptBadArguments;
@@ -85,12 +91,21 @@ private:
     explicit CmdParser();
     virtual ~CmdParser() = default;
 
+    int onIgnore(const std::weak_ptr<Carrier>& carrier,
+                 const std::vector<std::string>& args,
+                 const std::string& controller, int64_t timestamp);
     int onUnimplemented(const std::weak_ptr<Carrier>& carrier,
                         const std::vector<std::string>& args,
                         const std::string& controller, int64_t timestamp);
+
     int onHelp(const std::weak_ptr<Carrier>& carrier,
                const std::vector<std::string>& args,
                const std::string& controller, int64_t timestamp);
+
+    int onNewGroup(const std::weak_ptr<Carrier>& carrier,
+                   const std::vector<std::string>& args,
+                   const std::string& controller, int64_t timestamp);
+
     int onListFriend(const std::weak_ptr<Carrier>& carrier,
                      const std::vector<std::string>& args,
                      const std::string& controller, int64_t timestamp);
@@ -111,10 +126,10 @@ private:
     int forwardMsgToAllFriends(const std::weak_ptr<Carrier>& carrier);
     int forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier, const std::string& friendId);
 
+    std::vector<CommandInfo> getCmdInfoList(bool isManager);
     std::string trim(const std::string &str);
 
     std::unique_ptr<ThreadPool> taskThread;
-    std::string dataDir;
     Storage storage;
     std::vector<CommandInfo> cmdInfoList;
 }; // class CmdParser

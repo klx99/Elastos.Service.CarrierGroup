@@ -1,0 +1,66 @@
+//
+//  MD5.cpp
+//
+//  Created by mengxk on 19/03/16.
+//  Copyright © 2016 mengxk. All rights reserved.
+//
+
+#include "Process.hpp"
+
+#include <cerrno>
+#include <unistd.h>
+#include <ErrCode.hpp>
+#include <Log.hpp>
+
+namespace elastos {
+
+/***********************************************/
+/***** static variables initialize *************/
+/***********************************************/
+
+
+/***********************************************/
+/***** static function implement ***************/
+/***********************************************/
+int Process::Exec(const std::string& execPath,
+                  const std::vector<std::string>& execArgs)
+{
+    pid_t pid = fork();
+    switch(pid) {
+    case -1:
+        // An error has occurred
+        CHECK_ERROR(ErrCode::StdSystemErrorIndex - errno);
+    case 0:
+        {
+            // This code is executed by the child process
+            std::vector<const char*> args;
+            for(const auto& it: execArgs) {
+                args.push_back(it.c_str());
+            }
+            execv(execPath.data(), const_cast<char**>(args.data()));
+            exit(0);
+            break;
+        }
+    default:
+        // This code is executed by the parent process
+        break;
+    }
+
+    return 0;
+}
+
+
+/***********************************************/
+/***** class public function implement  ********/
+/***********************************************/
+
+/***********************************************/
+/***** class protected function implement  *****/
+/***********************************************/
+
+
+/***********************************************/
+/***** class private function implement  *******/
+/***********************************************/
+
+} // namespace elastos
