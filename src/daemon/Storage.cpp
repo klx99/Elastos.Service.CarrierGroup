@@ -19,6 +19,7 @@ const std::string Storage::TableName::Message = "message";
 const std::string Storage::Column::Member = "userid, uptime, name, status";
 const std::string Storage::Column::Message = "timestamp, sender, content";
 const std::string Storage::MemberStatus::Admin = "'admin'";
+const std::string Storage::MemberStatus::Member = "'member'";
 const std::string Storage::MemberStatus::Blocked = "'blocked'";
 
 /* =========================================== */
@@ -102,8 +103,36 @@ int64_t Storage::uptime(const std::string& userId)
 
 }
 
-
 int Storage::isOwner(const std::string& userId)
+{
+    CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
+
+    try {
+        std::string sql = makeQuerySql(TableName::Member, "count(*)",
+                                       {
+                                           "userid='" + userId + "'",
+                                           "id=1",
+                                       });
+        SqlDB::Statement query(*database, sql);
+        query.executeStep();
+        int count = query.getColumn(0);
+        if(count > 0) {
+            return 0;
+        }
+    } catch (SqlDB::Exception& e) {
+        Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
+                         e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    } catch (std::exception& e) {
+        Log::E(Log::TAG, "sqldb exception: %d", e.what());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    }
+
+    return ErrCode::NotMatchError;
+
+}
+
+int Storage::isAdmin(const std::string& userId)
 {
     CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
 
@@ -132,20 +161,20 @@ int Storage::isOwner(const std::string& userId)
 
 }
 
-int Storage::accessible(const std::string& userId)
+int Storage::isMember(const std::string& userId)
 {
     CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
 
     try {
         std::string sql = makeQuerySql(TableName::Member, "count(*)",
                                        {
-                                           "userid!='" + userId + "'",
-                                           "status=" + MemberStatus::Blocked,
+                                           "userid='" + userId + "'",
+                                           "status!=" + MemberStatus::Blocked,
                                        });
         SqlDB::Statement query(*database, sql);
         query.executeStep();
         int count = query.getColumn(0);
-        if(count <= 0) { // not found blocked member, allow to access.
+        if(count > 0) { // not found blocked member, allow to access.
             return 0;
         }
     } catch (SqlDB::Exception& e) {
@@ -170,8 +199,9 @@ int Storage::updateMember(const std::string& userId,
 
     try {
         std::stringstream values;
-        values << "'" << userId << "'," << uptime << ",'" << name << "','" << status << "'";
-        std::string sql = makeUpdateSql(TableName::Member, Column::Member, values.str());
+        values << "'" << userId << "'," << uptime << ",'" << name << "'," << status;
+        std::string sql = makeUpdateSql(TableName::Member, Column::Member, values.str(),
+                                        "userid", {"uptime", "name", "status"});
         database->exec(sql);
     } catch (SqlDB::Exception& e) {
         Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
@@ -182,7 +212,7 @@ int Storage::updateMember(const std::string& userId,
         CHECK_ERROR(ErrCode::SqlDbError);
     }
 
-    return ErrCode::SqlDbError;
+    return 0;
 }
 
 int Storage::updateMember(const std::string& userId,
@@ -193,7 +223,31 @@ int Storage::updateMember(const std::string& userId,
     try {
         std::stringstream values;
         values << "'" << userId << "'," << uptime << ",'',''";
-        std::string sql = makeUpdateSql(TableName::Member, Column::Member, values.str(), "userid", {"uptime"});
+        std::string sql = makeUpdateSql(TableName::Member, Column::Member, values.str(),
+                                        "userid", {"uptime"});
+        database->exec(sql);
+    } catch (SqlDB::Exception& e) {
+        Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
+                         e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    } catch (std::exception& e) {
+        Log::E(Log::TAG, "sqldb exception: %d", e.what());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    }
+
+    return 0;
+}
+
+int Storage::updateMember(const std::string& userId,
+                          const std::string status)
+{
+    CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
+
+    try {
+        std::stringstream values;
+        values << "'" << userId << "',0,''," << status;
+        std::string sql = makeUpdateSql(TableName::Member, Column::Member, values.str(),
+                                        "userid", {"status"});
         database->exec(sql);
     } catch (SqlDB::Exception& e) {
         Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
@@ -309,8 +363,11 @@ std::string Storage::makeUpdateSql(const std::string& table,
     sqlStream << "INSERT INTO " << table << " (" << columns << ") VALUES (" << values << ")";
     if(check.empty() == false) {
         sqlStream << " ON CONFLICT(" << check << ") DO UPDATE SET ";
-        for(const auto& it: updates) {
-            sqlStream << it << "=excluded." << it;
+        for(auto idx = 0; idx < updates.size(); idx++) {
+            if(idx > 0) {
+                sqlStream << ",";
+            }
+            sqlStream << updates[idx] << "=excluded." << updates[idx];
         }
     }
     sqlStream << ";";

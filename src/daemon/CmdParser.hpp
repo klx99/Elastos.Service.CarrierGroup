@@ -27,9 +27,11 @@ public:
     /*** type define ***/
     struct Cmd {
         inline static const std::string Help = "/help";
+        inline static const std::string ListFriend = "/list";
         inline static const std::string AddFriend = "/add";
-        inline static const std::string AllowFriend = "/allow";
+        // inline static const std::string AllowFriend = "/allow";
         inline static const std::string InviteFriend = "/invite";
+        inline static const std::string KickFriend = "/kick";
         inline static const std::string ForwardMessage = "/forward";
     };
 
@@ -55,10 +57,18 @@ protected:
 private:
     /*** type define ***/
     struct CommandInfo {
+        enum class Performer {
+            Owner,
+            Admin,
+            Member,
+            Anyone,
+        };
+
         using Processor = int(const std::weak_ptr<Carrier>& carrier,
                               const std::vector<std::string>&,
                               const std::string&, int64_t);
         std::string cmd;
+        Performer performer;
         std::function<Processor> func;
         std::string usage;
     };
@@ -69,6 +79,7 @@ private:
     static const std::string PromptAccessForbidden;
     static const std::string PromptBadCommand;
     static const std::string PromptBadArguments;
+    static const std::string PromptKicked;
 
     /*** class function and variable ***/
     explicit CmdParser();
@@ -80,16 +91,23 @@ private:
     int onHelp(const std::weak_ptr<Carrier>& carrier,
                const std::vector<std::string>& args,
                const std::string& controller, int64_t timestamp);
+    int onListFriend(const std::weak_ptr<Carrier>& carrier,
+                     const std::vector<std::string>& args,
+                     const std::string& controller, int64_t timestamp);
     int onAddFriend(const std::weak_ptr<Carrier>& carrier,
                     const std::vector<std::string>& args,
                     const std::string& controller, int64_t timestamp);
     int onInviteFriend(const std::weak_ptr<Carrier>& carrier,
                        const std::vector<std::string>& args,
                        const std::string& controller, int64_t timestamp);
+    int onKickFriend(const std::weak_ptr<Carrier>& carrier,
+                     const std::vector<std::string>& args,
+                     const std::string& controller, int64_t timestamp);
     int onForwardMessage(const std::weak_ptr<Carrier>& carrier,
                          const std::vector<std::string>& args,
                          const std::string& controller, int64_t timestamp);
     
+    int checkPerformer(const std::string& friendId, const CommandInfo::Performer& performer);
     int forwardMsgToAllFriends(const std::weak_ptr<Carrier>& carrier);
     int forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier, const std::string& friendId);
 

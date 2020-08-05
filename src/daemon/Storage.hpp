@@ -27,6 +27,12 @@ public:
         std::string content;
     };
 
+    struct MemberStatus {
+        static const std::string Admin;
+        static const std::string Member;
+        static const std::string Blocked;
+    };
+
     /*** static function and variable ***/
 
     /*** class function and variable ***/
@@ -40,7 +46,8 @@ public:
     int64_t uptime(const std::string& userId);
 
     int isOwner(const std::string& userId);
-    int accessible(const std::string& userId);
+    int isAdmin(const std::string& userId);
+    int isMember(const std::string& userId);
 
     int updateMember(const std::string& userId,
                      int64_t uptime,
@@ -48,6 +55,8 @@ public:
                      const std::string& status = "");
     int updateMember(const std::string& userId,
                      int64_t uptime);
+    int updateMember(const std::string& userId,
+                     const std::string status);
 
     int updateMessage(const MessageInfo& info);
 
@@ -71,10 +80,6 @@ private:
     struct Column {
         static const std::string Member;
         static const std::string Message;
-    };
-    struct MemberStatus {
-        static const std::string Admin;
-        static const std::string Blocked;
     };
 
     /*** static function and variable ***/

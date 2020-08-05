@@ -19,6 +19,7 @@ const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 const std::string CmdParser::PromptBadCommand = "Bad Command!"
                                                 "\nPlease use '/help' to get usage of all commands.";
 const std::string CmdParser::PromptBadArguments = "Bad Arguments!";
+const std::string CmdParser::PromptKicked = "You are kicked by group admin!";
 
 /* =========================================== */
 /* === static function implement ============= */
@@ -110,6 +111,16 @@ int CmdParser::dispatch(const std::weak_ptr<Carrier>& carrier,
             continue;
         }
 
+        rc = checkPerformer(controller, cmdInfo.performer);
+        if(rc < 0) {
+            Log::W(Log::TAG, "%s %s want to exec command %s(perform=%d).",
+                             PromptAccessForbidden.c_str(), controller.c_str(), cmdInfo.cmd.c_str(), cmdInfo.performer);
+            auto carrierPtr = carrier.lock();
+            CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+            rc = carrierPtr->sendMessage(controller, PromptAccessForbidden);
+            CHECK_ERROR(rc);
+        }
+
         rc = cmdInfo.func(carrier, args, controller, timestamp);
         CHECK_ERROR(rc);
 
@@ -140,18 +151,32 @@ CmdParser::CmdParser()
     cmdInfoList = std::vector<CommandInfo>{
         {
             Cmd::Help,
+            CommandInfo::Performer::Admin,
             std::bind(&CmdParser::onHelp, this, _1, _2, _3, _4),
             "[" + Cmd::Help + "] Print help usages."
         }, {
+            Cmd::ListFriend,
+            CommandInfo::Performer::Admin,
+            std::bind(&CmdParser::onListFriend, this, _1, _2, _3, _4),
+            "[" + Cmd::ListFriend + "] List all friends."
+        }, {
             Cmd::AddFriend,
+            CommandInfo::Performer::Anyone,
             std::bind(&CmdParser::onAddFriend, this, _1, _2, _3, _4),
             "[" + Cmd::AddFriend + "] Received a friend request."
         }, {
             Cmd::InviteFriend,
+            CommandInfo::Performer::Admin,
             std::bind(&CmdParser::onInviteFriend, this, _1, _2, _3, _4),
             "[" + Cmd::InviteFriend + " address (brief)] Invite a friend into group."
         }, {
+            Cmd::KickFriend,
+            CommandInfo::Performer::Admin,
+            std::bind(&CmdParser::onKickFriend, this, _1, _2, _3, _4),
+            "[" + Cmd::KickFriend + " id] Kick a friend from group."
+        }, {
             Cmd::ForwardMessage,
+            CommandInfo::Performer::Member,
             std::bind(&CmdParser::onForwardMessage, this, _1, _2, _3, _4),
             "[" + Cmd::ForwardMessage + "] Forward message to all online peer."
         },
@@ -162,18 +187,10 @@ int CmdParser::onUnimplemented(const std::weak_ptr<Carrier>& carrier,
                                const std::vector<std::string>& args,
                                const std::string& controller, int64_t timestamp)
 {
-    std::string_view response;
-
-    int rc = storage.isOwner(controller);
-    if(rc < 0) {
-        response = PromptAccessForbidden;
-    } else {
-        response = PromptBadCommand;
-    }
-
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
-    carrierPtr->sendMessage(controller, response);
+    int rc = carrierPtr->sendMessage(controller, PromptBadCommand);
+    CHECK_ERROR(rc);
 
     return 0;
 }
@@ -184,24 +201,41 @@ int CmdParser::onHelp(const std::weak_ptr<Carrier>& carrier,
 {
     std::stringstream usage;
 
-    int rc = storage.isOwner(controller);
-    if(rc < 0) {
-        usage << PromptAccessForbidden;
-    } else {
-        usage << "Usage:" << std::endl;
-        for(const auto& cmdInfo : cmdInfoList) {
-            if(cmdInfo.cmd == "-") {
-                usage << cmdInfo.usage << std::endl;
-            } else {
-                usage << "  " << cmdInfo.cmd <<  ": " << cmdInfo.usage << std::endl;
-            }
+    usage << "Usage:" << std::endl;
+    for(const auto& cmdInfo : cmdInfoList) {
+        if(cmdInfo.cmd == "-") {
+            usage << cmdInfo.usage << std::endl;
+        } else {
+            usage << "  " << cmdInfo.cmd <<  ": " << cmdInfo.usage << std::endl;
         }
-        usage << std::endl;
     }
+    usage << std::endl;
 
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
-    carrierPtr->sendMessage(controller, usage.str());
+    int rc = carrierPtr->sendMessage(controller, usage.str());
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int CmdParser::onListFriend(const std::weak_ptr<Carrier>& carrier,
+                            const std::vector<std::string>& args,
+                            const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    std::vector<std::string> friendList;
+    int rc = carrierPtr->getFriendList(false, friendList);
+    CHECK_ERROR(rc);
+
+    std::stringstream buf;
+    for(const auto& it: friendList) {
+        buf << it << '\n';
+    }
+    rc = carrierPtr->sendMessage(controller, buf.str());
+    CHECK_ERROR(rc);
 
     return 0;
 }
@@ -210,23 +244,18 @@ int CmdParser::onAddFriend(const std::weak_ptr<Carrier>& carrier,
                            const std::vector<std::string>& args,
                            const std::string& controller, int64_t timestamp)
 {
-    int rc = storage.accessible(controller);
-    if(rc < 0) {
-        Log::W(Log::TAG, "Unexpected member want join into group.");
-        CHECK_ERROR(ErrCode::CarrierUnexpectedRequest);
-    }
-
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
 
-    rc = carrierPtr->addFriend(controller);
+    int rc = carrierPtr->addFriend(controller);
     CHECK_ERROR(rc);
 
     std::string friendName; 
     rc = carrierPtr->getFriendNameById(controller, friendName);
     CHECK_ERROR(rc);
 
-    storage.updateMember(controller, timestamp, friendName);
+    rc = storage.updateMember(controller, timestamp, friendName);
+    CHECK_ERROR(rc);
 
     return 0;
 }
@@ -235,12 +264,6 @@ int CmdParser::onInviteFriend(const std::weak_ptr<Carrier>& carrier,
                               const std::vector<std::string>& args,
                               const std::string& controller, int64_t timestamp)
 {
-    int rc = storage.accessible(controller);
-    if(rc < 0) {
-        Log::W(Log::TAG, "Unexpected member want invite member into group.");
-        CHECK_ERROR(ErrCode::CarrierUnexpectedRequest);
-    }
-
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
 
@@ -259,14 +282,43 @@ int CmdParser::onInviteFriend(const std::weak_ptr<Carrier>& carrier,
         CHECK_ERROR(ErrCode::InvalidArgument);
     }
 
-    rc = carrierPtr->addFriend(address, brief);
+    int rc = carrierPtr->addFriend(address, brief);
+    CHECK_ERROR(rc);
+
+    std::string friendId;
+    rc = Carrier::GetUsrIdByAddress(address, friendId);
     CHECK_ERROR(rc);
 
     std::string friendName; 
     rc = carrierPtr->getFriendNameById(controller, friendName);
     CHECK_ERROR(rc);
 
-    storage.updateMember(controller, timestamp, friendName);
+    rc = storage.updateMember(friendId, 0 /*timestamp*/, friendName, Storage::MemberStatus::Member);
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int CmdParser::onKickFriend(const std::weak_ptr<Carrier>& carrier,
+                            const std::vector<std::string>& args,
+                            const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    if(args.size() < 1) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+    const auto memberId = args[0];
+
+    carrierPtr->sendMessage(memberId, PromptKicked); // ignore return value
+
+    int rc = carrierPtr->removeFriend(memberId);
+    CHECK_ERROR(rc);
+
+    rc = storage.updateMember(memberId, Storage::MemberStatus::Blocked);
+    CHECK_ERROR(rc);
 
     return 0;
 }
@@ -275,24 +327,41 @@ int CmdParser::onForwardMessage(const std::weak_ptr<Carrier>& carrier,
                                 const std::vector<std::string>& args,
                                 const std::string& controller, int64_t timestamp)
 {
-    int rc = storage.accessible(controller);
-    if(rc < 0) {
-        Log::W(Log::TAG, "Unexpected member want to send message.");
-        CHECK_ERROR(ErrCode::CarrierUnexpectedRequest);
-    }
-
-    auto carrierPtr = carrier.lock();
-    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
-
     if(args.size() == 1) {
         const std::string& message = args[0];
-        rc = storage.updateMessage({timestamp, controller, message});
+        int rc = storage.updateMessage({timestamp, controller, message});
         CHECK_ERROR(rc);
     }
 
     taskThread->post(std::bind(&CmdParser::forwardMsgToAllFriends, this, carrier));
 
     return 0;
+}
+
+int CmdParser::checkPerformer(const std::string& friendId,
+                              const CommandInfo::Performer& performer)
+{
+    int rc;
+
+    switch (performer) {
+    case CommandInfo::Performer::Owner:
+        rc = storage.isOwner(friendId);
+        break;
+    case CommandInfo::Performer::Admin:
+        rc = storage.isAdmin(friendId);
+        break;
+    case CommandInfo::Performer::Member:
+        rc = storage.isMember(friendId);
+        break;
+    case CommandInfo::Performer::Anyone:
+        rc = 0;
+        break;
+    default:
+        rc = ErrCode::ErrCode::NotMatchError;
+        break;
+    }
+
+    return rc;
 }
 
 int CmdParser::forwardMsgToAllFriends(const std::weak_ptr<Carrier>& carrier)
