@@ -1,5 +1,4 @@
-#include <csignal>
-#include <thread>
+#include "Daemon.hpp"
 
 #include <Carrier.hpp>
 #include <CmdListener.hpp>
@@ -8,26 +7,41 @@
 #include <Json.hpp>
 #include <OptParser.hpp>
 
-#include <getopt.h>
+namespace elastos {
 
-static void SignalHandler(int signal);
-static void SignalHandler(int signal);
-static bool gExitFlag = false;
+/* =========================================== */
+/* === static variables initialize =========== */
+/* =========================================== */
+std::shared_ptr<Daemon> Daemon::DaemonInstance;
+std::recursive_mutex Daemon::DaemonMutex = {};
 
-int main(int argc, char **argv)
+/* =========================================== */
+/* === static function implement ============= */
+/* =========================================== */
+std::shared_ptr<Daemon> Daemon::GetInstance()
 {
-    using namespace elastos;
-    int rc;
+    if(DaemonInstance != nullptr) {
+        return DaemonInstance;
+    }
 
-    std::signal(SIGINT, SignalHandler);
-    std::signal(SIGSEGV, SignalHandler);
-    std::signal(SIGTERM, SignalHandler);
-    std::signal(SIGKILL, SignalHandler);
+    std::lock_guard<std::recursive_mutex> lg(DaemonMutex);
+    if(DaemonInstance != nullptr) {
+        return DaemonInstance;
+    }
 
-    rc = OptParser::GetInstance()->parse(argc, argv);
-    CHECK_ERROR(rc);
+    struct Impl: Daemon {
+    };
+    DaemonInstance = std::make_shared<Impl>();
 
-    auto carrier = std::make_shared<Carrier>();
+    return DaemonInstance;
+}
+
+/* =========================================== */
+/* === class public function implement  ====== */
+/* =========================================== */
+int Daemon::run()
+{
+    carrier = std::make_shared<Carrier>();
 
     auto options = std::make_shared<CarrierOptions>();
     options->logLevel = 4;
@@ -45,7 +59,10 @@ int main(int argc, char **argv)
 
     auto handlers = std::make_shared<CmdListener>(carrier);
     
-    rc = carrier->config(options, handlers);
+    int rc = carrier->config(options, handlers);
+    CHECK_ERROR(rc);
+
+    rc = handlers->saveAddress();
     CHECK_ERROR(rc);
 
     rc = carrier->start();
@@ -60,14 +77,15 @@ int main(int argc, char **argv)
     Log::W(Log::TAG, "Address: %s", address.c_str());
     Log::W(Log::TAG, "UserId: %s", userId.c_str());
 
-    while(gExitFlag == false) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
     return 0;
 }
 
-static void SignalHandler(int signal)
-{
-    gExitFlag = true;
-}
+/* =========================================== */
+/* === class protected function implement  === */
+/* =========================================== */
+
+/* =========================================== */
+/* === class private function implement  ===== */
+/* =========================================== */
+
+} // namespace elastos

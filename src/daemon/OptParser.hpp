@@ -52,7 +52,7 @@ private:
     /*** type define ***/
 
     /*** static function and variable ***/
-    static std::recursive_mutex CmdMutex;
+    static std::recursive_mutex OptMutex;
     static std::shared_ptr<OptParser> OptParserInstance;
 
     static const int MaxVisibleOpt;

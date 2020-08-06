@@ -13,7 +13,7 @@ namespace elastos {
 /* === static variables initialize =========== */
 /* =========================================== */
 std::shared_ptr<OptParser> OptParser::OptParserInstance;
-std::recursive_mutex OptParser::CmdMutex = {};
+std::recursive_mutex OptParser::OptMutex = {};
 
 const int OptParser::MaxVisibleOpt = 0xFF;
 const char* OptParser::ShortOptions = "hd:gm";
@@ -47,7 +47,7 @@ std::shared_ptr<OptParser> OptParser::GetInstance()
         return OptParserInstance;
     }
 
-    std::lock_guard<std::recursive_mutex> lg(CmdMutex);
+    std::lock_guard<std::recursive_mutex> lg(OptMutex);
     if(OptParserInstance != nullptr) {
         return OptParserInstance;
     }
@@ -64,16 +64,11 @@ std::shared_ptr<OptParser> OptParser::GetInstance()
 /* =========================================== */
 int OptParser::parse(int argc, char **argv)
 {
-
     execPath = argv[0];
     std::vector<char*> execArgs;
-    for(auto idx = 1; idx < argc; idx++) { // argv[0] is exec path
+    for(auto idx = 0; idx < argc; idx++) {
         execArgs.push_back(argv[idx]);
-    }
-
-    Log::D(Log::TAG, "exec path: %s", execPath.c_str());
-    for(auto idx = 0; idx < execArgs.size(); idx++) {
-        Log::D(Log::TAG, "exec arg%d: %s", idx, execArgs[idx]);
+        Log::I(Log::TAG, "execArg%d: %s", idx, argv[idx]);
     }
 
     bool groupFlag = false;
@@ -101,7 +96,7 @@ int OptParser::parse(int argc, char **argv)
         case '?':
             break;
         default:
-            printf ("?? getopt returned character code 0x%X ??\n", opt);
+            Log::W(Log::TAG, "?? getopt returned character code 0x%X ??\n", opt);
         }
     }
     // if (optind < argc) {
@@ -112,17 +107,19 @@ int OptParser::parse(int argc, char **argv)
     // }
 
     // Check args
+    std::string execName = std::filesystem::path(execPath).filename();
     if(dataDir.empty() == true) {
-        std::string execName = std::filesystem::path(execPath).filename();
         dataDir = execName + ".data";
     }
     if(managerFlag == true && groupFlag == true) {
-        printf("Bad arguments.");
+        Log::E(Log::TAG, "Bad arguments.");
         return ErrCode::InvalidArgument;
     }
     if(groupFlag == false) { // default run as manager
         managerFlag = true;
     }
+    Log::W(Log::TAG, "%s run as [%s] at data dir: %s",
+                     execName.c_str(), managerFlag ? "Manager" : "Group", dataDir.c_str());
 
     return 0;
 }

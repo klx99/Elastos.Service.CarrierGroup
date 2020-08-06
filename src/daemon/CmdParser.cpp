@@ -19,6 +19,7 @@ namespace elastos {
 std::shared_ptr<CmdParser> CmdParser::CmdParserInstance;
 std::recursive_mutex CmdParser::CmdMutex = {};
 const std::string CmdParser::CarrierAddressName = "carrier-address";
+const int CmdParser::MaxWaitNewGroupTime = 1000; // millisecond
 
 const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 const std::string CmdParser::PromptBadCommand = "Bad Command!"
@@ -55,6 +56,24 @@ CmdParser::CmdParser()
 {
     bool isManager = OptParser::GetInstance()->isManager();
     cmdInfoList = std::move(getCmdInfoList(isManager));
+}
+
+int CmdParser::saveAddress(const std::weak_ptr<Carrier>& carrier)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    std::string address;
+    int rc = carrierPtr->getAddress(address);
+    CHECK_ERROR(rc);
+
+    auto addrFilePath = std::filesystem::path {OptParser::GetInstance()->getDataDir()};
+    addrFilePath.append(CarrierAddressName);
+    std::ofstream addrFile {addrFilePath};
+    addrFile << address;
+    addrFile.flush();
+
+    return 0;
 }
 
 int CmdParser::parse(const std::weak_ptr<Carrier>& carrier,
@@ -101,10 +120,9 @@ int CmdParser::dispatch(const std::weak_ptr<Carrier>& carrier,
                         std::string cmd, const std::vector<std::string>& args,
                         const std::string& controller, int64_t timestamp)
 {
-    Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
-    Log::D(Log::TAG, "cmd: %s", cmd.c_str());
+    Log::V(Log::TAG, "dispach cmd: %s", cmd.c_str());
     for(const auto& it: args) {
-        Log::D(Log::TAG, "arg: %s", it.c_str());
+        Log::V(Log::TAG, "arg: %s", it.c_str());
     }
 
     int rc = ErrCode::UnimplementedError;
@@ -206,13 +224,38 @@ int CmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
     const auto& groupName = args[0];
     
     auto groupDataDir = std::filesystem::canonical(OptParser::GetInstance()->getDataDir());
-    groupDataDir.append(controller).append(std::to_string(timestamp));
+    groupDataDir.append(controller).append(DateTime::NsToString(timestamp, false));
     std::vector<std::string> groupArgs = {
         "--group",
         std::string("--") + OptParser::OptName::DataDir + "=" + groupDataDir.string(),
     };
 
     int rc = Process::Exec(OptParser::GetInstance()->getExecPath(), groupArgs);
+    CHECK_ERROR(rc);
+
+    std::string newGroupAddress;
+    constexpr const int tick = 100; // milliseconds
+    for(auto idx = 0; idx < (MaxWaitNewGroupTime / tick); idx++) {
+        auto addrFilePath = std::filesystem::path {groupDataDir};
+        addrFilePath.append(CarrierAddressName);
+        std::ifstream addrFile {addrFilePath};
+        addrFile >> newGroupAddress;
+        if(newGroupAddress.empty() == false) {
+            break;
+        }
+
+        Log::D(Log::TAG, "Waiting new group start...");
+        taskThread->sleepMS(tick);
+    }
+
+    std::string response;
+    if(newGroupAddress.empty() == true) {
+        response = "Failed to new a group.";
+    } else {
+        response = "Success to new the group: " + newGroupAddress;
+    }
+
+    rc = carrierPtr->sendMessage(controller, response);
     CHECK_ERROR(rc);
 
     return 0;

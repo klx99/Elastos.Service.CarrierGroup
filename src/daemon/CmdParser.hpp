@@ -44,6 +44,8 @@ public:
     static std::shared_ptr<CmdParser> GetInstance();
 
     /*** class function and variable ***/
+    int saveAddress(const std::weak_ptr<Carrier>& carrier);
+
     int parse(const std::weak_ptr<Carrier>& carrier,
               const std::string& cmdline,
               const std::string& controller, int64_t timestamp);
@@ -81,6 +83,7 @@ private:
     static std::recursive_mutex CmdMutex;
     static std::shared_ptr<CmdParser> CmdParserInstance;
     static const std::string CarrierAddressName;
+    static const int MaxWaitNewGroupTime;
 
     static const std::string PromptAccessForbidden;
     static const std::string PromptBadCommand;

@@ -25,6 +25,14 @@ CmdListener::CmdListener(std::weak_ptr<Carrier> carrier)
 {
 }
 
+int CmdListener::saveAddress()
+{
+    int rc = CmdParser::GetInstance()->saveAddress(carrier);
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
 void CmdListener::onError(int errCode)
 {
     Log::D(Log::TAG, "%s errCode=%d", __PRETTY_FUNCTION__, errCode);

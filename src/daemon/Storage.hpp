@@ -52,7 +52,7 @@ public:
     int updateMember(const std::string& userId,
                      int64_t uptime,
                      const std::string& name,
-                     const std::string& status = "");
+                     const std::string& status = MemberStatus::Member);
     int updateMember(const std::string& userId,
                      int64_t uptime);
     int updateMember(const std::string& userId,
@@ -87,6 +87,7 @@ private:
     static const int StorageMessageSize;
 
     /*** class function and variable ***/
+    bool hasOwner();
     std::string makeCreateSql(const std::string& table,
                               const std::string& columns,
                               const std::vector<std::string>& props);

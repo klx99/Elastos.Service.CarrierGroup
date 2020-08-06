@@ -28,6 +28,8 @@ public:
     explicit CmdListener(std::weak_ptr<Carrier> carrier);
     virtual ~CmdListener() = default;
 
+    int saveAddress();
+
     virtual void onError(int errCode) override;
 
     virtual void onStatusChanged(const std::string& userId,

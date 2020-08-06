@@ -119,6 +119,12 @@ int Storage::isOwner(const std::string& userId)
         if(count > 0) {
             return 0;
         }
+
+        // check empty storage, allow first member as admin
+        bool hasOwner = this->hasOwner();
+        if(hasOwner == false) {
+            return 0;
+        }
     } catch (SqlDB::Exception& e) {
         Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
                          e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
@@ -129,7 +135,6 @@ int Storage::isOwner(const std::string& userId)
     }
 
     return ErrCode::NotMatchError;
-
 }
 
 int Storage::isAdmin(const std::string& userId)
@@ -146,6 +151,12 @@ int Storage::isAdmin(const std::string& userId)
         query.executeStep();
         int count = query.getColumn(0);
         if(count > 0) {
+            return 0;
+        }
+
+        // check empty storage, allow first member as admin
+        bool hasOwner = this->hasOwner();
+        if(hasOwner == false) {
             return 0;
         }
     } catch (SqlDB::Exception& e) {
@@ -175,6 +186,12 @@ int Storage::isMember(const std::string& userId)
         query.executeStep();
         int count = query.getColumn(0);
         if(count > 0) { // not found blocked member, allow to access.
+            return 0;
+        }
+
+        // check empty storage, allow first member as admin
+        bool hasOwner = this->hasOwner();
+        if(hasOwner == false) {
             return 0;
         }
     } catch (SqlDB::Exception& e) {
@@ -326,6 +343,30 @@ int Storage::findMessages(int64_t startTime, int count,
 /* =========================================== */
 /* === class private function implement  ===== */
 /* =========================================== */
+bool Storage::hasOwner()
+{
+    CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
+
+    try {
+        std::string sql = makeQuerySql(TableName::Member, "count(*)", {});
+        SqlDB::Statement query(*database, sql);
+        query.executeStep();
+        int count = query.getColumn(0);
+        if(count == 0) {
+            return true;
+        }
+    } catch (SqlDB::Exception& e) {
+        Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
+                         e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
+        CHECK_ASSERT(ErrCode::SqlDbError, false);
+    } catch (std::exception& e) {
+        Log::E(Log::TAG, "sqldb exception: %d", e.what());
+        CHECK_ASSERT(ErrCode::SqlDbError, false);
+    }
+
+    return false;
+}
+
 std::string Storage::makeCreateSql(const std::string& table,
                                    const std::string& columns,
                                    const std::vector<std::string>& props)

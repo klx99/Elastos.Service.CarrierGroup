@@ -33,16 +33,22 @@ int Process::Exec(const std::string& execPath,
     case 0:
         {
             // This code is executed by the child process
+            Log::W(Log::TAG, "Start to exec child process...");
             std::vector<const char*> args;
-            for(const auto& it: execArgs) {
-                args.push_back(it.c_str());
+            if(execArgs.size() > 0 && execPath != execArgs[0]) {
+                args.push_back(execPath.data());
             }
+            for(const auto& it: execArgs) {
+                args.push_back(it.data());
+            }
+            args.push_back(nullptr);
             execv(execPath.data(), const_cast<char**>(args.data()));
             exit(0);
             break;
         }
     default:
         // This code is executed by the parent process
+        Log::I(Log::TAG, "Success to create child process...");
         break;
     }
 

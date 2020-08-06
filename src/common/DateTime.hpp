@@ -69,8 +69,13 @@ public:
         return std::string(buf) + milliseconds_str;
     }
 
-    static std::string NsToString(int64_t nanoseconds) {
-        return MsToString(nanoseconds / 1000000);
+    static std::string NsToString(int64_t nanoseconds, bool precisionMs = true) {
+        std::string ns = MsToString(nanoseconds / 1000000);
+        if(precisionMs == false) {
+            ns += "." + std::to_string(nanoseconds % 1000000);
+        }
+
+        return ns;
     }
 
     /*** class function and variable ***/
