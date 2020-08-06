@@ -76,10 +76,12 @@ private:
     struct TableName {
         static const std::string Member;
         static const std::string Message;
+        static const std::string Manager;
     };
     struct Column {
         static const std::string Member;
         static const std::string Message;
+        static const std::string Manager;
     };
 
     /*** static function and variable ***/

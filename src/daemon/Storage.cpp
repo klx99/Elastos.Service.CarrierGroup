@@ -16,8 +16,10 @@ const std::string Storage::StorageName = "carrier-group.db";
 const int Storage::StorageMessageSize = 100;
 const std::string Storage::TableName::Member = "member";
 const std::string Storage::TableName::Message = "message";
+const std::string Storage::TableName::Manager = "manager";
 const std::string Storage::Column::Member = "userid, uptime, name, status";
 const std::string Storage::Column::Message = "timestamp, sender, content";
+const std::string Storage::Column::Manager = "timestamp, groupid, datadir";
 const std::string Storage::MemberStatus::Admin = "'admin'";
 const std::string Storage::MemberStatus::Member = "'member'";
 const std::string Storage::MemberStatus::Blocked = "'blocked'";
@@ -53,6 +55,14 @@ int Storage::mount(const std::string& dir)
             "TEXT",
         });
         database->exec(sql);
+
+        sql = makeCreateSql(TableName::Manager, Column::Manager, {
+            "INTEGER NOT NULL",
+            "TEXT UNIQUE NOT NULL",
+            "TEXT NOT NULL",
+        });
+        database->exec(sql);
+
 
         transaction.commit();
     } catch (SqlDB::Exception& e) {

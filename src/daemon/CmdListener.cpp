@@ -5,7 +5,9 @@
 #include <CmdParser.hpp>
 #include <DateTime.hpp>
 #include <ErrCode.hpp>
+#include <GroupCmdParser.hpp>
 #include <Log.hpp>
+#include <OptParser.hpp>
 
 namespace elastos {
 
@@ -20,14 +22,12 @@ namespace elastos {
 /* =========================================== */
 /* === class public function implement  ====== */
 /* =========================================== */
-CmdListener::CmdListener(std::weak_ptr<Carrier> carrier)
-    : carrier(carrier)
+int CmdListener::config(std::weak_ptr<Carrier> carrier)
 {
-}
+    this->carrier = carrier;
+    this->cmdParser = CmdParser::Factory::Create();
 
-int CmdListener::saveAddress()
-{
-    int rc = CmdParser::GetInstance()->saveAddress(carrier);
+    int rc = this->cmdParser->config(carrier);
     CHECK_ERROR(rc);
 
     return 0;
@@ -48,9 +48,9 @@ void CmdListener::onFriendRequest(const std::string& friendCode,
                                   const std::string& summary)
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
-    auto cmdline = CmdParser::Cmd::Grp::AddFriend + " " + friendCode + " " + summary;
-    int rc = CmdParser::GetInstance()->parse(carrier, 
-                                             cmdline, friendCode, 0);
+    auto cmdline = CmdParser::Cmd::AddFriend + " " + friendCode + " " + summary;
+    int rc = cmdParser->parse(carrier, 
+                              cmdline, friendCode, 0);
     if(rc < 0) {
         onError(rc);
         return;
@@ -64,10 +64,11 @@ void CmdListener::onFriendStatusChanged(const std::string& friendCode,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    if(status == Status::Online) {
-        int rc = CmdParser::GetInstance()->parse(carrier,
-                                                 CmdParser::Cmd::Grp::ForwardMessage,
-                                                 friendCode, DateTime::CurrentNS());
+    bool isGroup = !OptParser::GetInstance()->isManager();
+    if(isGroup && status == Status::Online) {
+        int rc = cmdParser->parse(carrier,
+                                  GroupCmdParser::Cmd::ForwardMessage,
+                                  friendCode, DateTime::CurrentNS());
         CHECK_RETVAL(rc);
     }
 }
@@ -87,10 +88,10 @@ void CmdListener::onReceivedMessage(const std::string& friendCode,
     }
 
     if(cmdline.find_first_of('/') != 0) { // if not a command, exec as forward.
-        cmdline = CmdParser::Cmd::Grp::ForwardMessage + " " + cmdline;
+        cmdline = GroupCmdParser::Cmd::ForwardMessage + " " + cmdline;
     }
-    int rc = CmdParser::GetInstance()->parse(carrier,
-                                             cmdline, friendCode, timestamp);
+    int rc = cmdParser->parse(carrier,
+                              cmdline, friendCode, timestamp);
     CHECK_RETVAL(rc);
 }
 

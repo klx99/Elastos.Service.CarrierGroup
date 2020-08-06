@@ -17,6 +17,7 @@
 namespace elastos {
 
 class Carrier;
+class CmdParser;
 
 class CmdListener : public CarrierHandler {
 public:
@@ -25,10 +26,10 @@ public:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    explicit CmdListener(std::weak_ptr<Carrier> carrier);
+    explicit CmdListener() = default;;
     virtual ~CmdListener() = default;
 
-    int saveAddress();
+    int config(std::weak_ptr<Carrier> carrier);
 
     virtual void onError(int errCode) override;
 
@@ -59,7 +60,7 @@ private:
 
     /*** class function and variable ***/
     std::weak_ptr<Carrier> carrier;
-
+    std::shared_ptr<CmdParser> cmdParser;
 }; // class CmdListener
 
 } // namespace elastos

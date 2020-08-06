@@ -57,12 +57,12 @@ int Daemon::run()
     // options->expressNode.push_back({ "ece01.trinity-tech.io", "443", "FyTt6cgnoN1eAMfmTRJCaX2UoN6ojAgCimQEbv1bruy9" });
     // options->expressNode.push_back({ "ece01.trinity-tech.cn", "443", "FyTt6cgnoN1eAMfmTRJCaX2UoN6ojAgCimQEbv1bruy9" });
 
-    auto handlers = std::make_shared<CmdListener>(carrier);
+    auto handlers = std::make_shared<CmdListener>();
     
     int rc = carrier->config(options, handlers);
     CHECK_ERROR(rc);
 
-    rc = handlers->saveAddress();
+    rc = handlers->config(carrier);
     CHECK_ERROR(rc);
 
     rc = carrier->start();
