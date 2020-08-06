@@ -39,6 +39,11 @@ std::vector<CmdParser::CommandInfo> ManagerCmdParser::getCmdInfoList()
             CommandInfo::Performer::Anyone,
             std::bind(&ManagerCmdParser::onNewGroup, this, _1, _2, _3, _4),
             "[" + Cmd::NewGroup + " groupname] New a new group."
+        }, {
+            Cmd::StartGroup,
+            CommandInfo::Performer::Anyone,
+            std::bind(&ManagerCmdParser::onStartGroup, this, _1, _2, _3, _4),
+            "[" + Cmd::StartGroup + " groupname] New a new group."
         }
     });
 
@@ -61,11 +66,11 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
     }
     const auto& groupName = args[0];
     
-    auto groupDataDir = std::filesystem::canonical(OptParser::GetInstance()->getDataDir());
-    groupDataDir = groupDataDir / controller /DateTime::NsToString(timestamp, false);
+    auto groupDataDir = std::filesystem::path(controller) / DateTime::NsToString(timestamp, false);
+    auto groupDataPath = OptParser::GetInstance()->getDataDir() / groupDataDir;
     std::vector<std::string> groupArgs = {
         "--group",
-        std::string("--") + OptParser::OptName::DataDir + "=" + groupDataDir.string(),
+        std::string("--") + OptParser::OptName::DataDir + "=" + groupDataPath.string(),
     };
 
     int rc = Process::Exec(OptParser::GetInstance()->getExecPath(), groupArgs);
@@ -74,8 +79,7 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
     std::string newGroupAddress;
     constexpr const int tick = 100; // milliseconds
     for(auto idx = 0; idx < (MaxWaitNewGroupTime / tick); idx++) {
-        auto addrFilePath = std::filesystem::path {groupDataDir};
-        std::ifstream addrFile {addrFilePath / CarrierAddressName};
+        std::ifstream addrFile {groupDataPath / CarrierAddressName};
         addrFile >> newGroupAddress;
         if(newGroupAddress.empty() == false) {
             break;
@@ -85,6 +89,9 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
         getTaskThread()->sleepMS(tick);
     }
 
+    rc = getStorage()->updateManager(timestamp, newGroupAddress, groupDataDir.string());
+    CHECK_ERROR(rc);
+
     std::string response;
     if(newGroupAddress.empty() == true) {
         response = "Failed to new a group.";
@@ -92,6 +99,40 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
         response = "Success to new the group: " + newGroupAddress;
     }
 
+    rc = carrierPtr->sendMessage(controller, response);
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int ManagerCmdParser::onStartGroup(const std::weak_ptr<Carrier>& carrier,
+                                   const std::vector<std::string>& args,
+                                   const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+
+    if(args.size() < 1) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+    const auto& groupAddr = args[0];
+    
+    std::string savedGroupDir;
+    int rc = getStorage()->findGroup(groupAddr, savedGroupDir);
+    CHECK_ERROR(rc);
+
+    auto groupDataDir = std::filesystem::path(savedGroupDir);
+    auto groupDataPath = OptParser::GetInstance()->getDataDir() / groupDataDir;
+    std::vector<std::string> groupArgs = {
+        "--group",
+        std::string("--") + OptParser::OptName::DataDir + "=" + groupDataPath.string(),
+    };
+
+    rc = Process::Exec(OptParser::GetInstance()->getExecPath(), groupArgs);
+    CHECK_ERROR(rc);
+
+    std::string response = "Success to start group: " + groupAddr;
     rc = carrierPtr->sendMessage(controller, response);
     CHECK_ERROR(rc);
 

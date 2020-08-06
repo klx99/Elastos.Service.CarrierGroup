@@ -60,9 +60,16 @@ public:
 
     int updateMessage(const MessageInfo& info);
 
+    int updateManager(int64_t timestamp,
+                      const std::string& groupAddr,
+                      const std::string& groupDir);
+
     int findMessages(int64_t startTime, int count,
                      const std::string& ignoreId,
                      std::vector<MessageInfo>& list);
+
+    int findGroup(const std::string& groupAddr,
+                  std::string& groupDir);
 
 protected:
     /*** type define ***/

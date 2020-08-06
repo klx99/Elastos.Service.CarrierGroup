@@ -198,7 +198,7 @@ int GroupCmdParser::forwardMsgToFriend(const std::weak_ptr<Carrier>& carrier,
     do {
         std::vector<Storage::MessageInfo> msgList;
         found = getStorage()->findMessages(uptime, 10, friendId, msgList);
-        CHECK_ERROR(found);
+        CHECK_ASSERT(found >= 0 || found == ErrCode::NotFoundError, found);
 
         for(auto& info: msgList) {
             info.sender.replace(info.sender.begin() + reservedId, info.sender.end() - reservedId, "...");

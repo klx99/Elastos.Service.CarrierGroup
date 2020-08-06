@@ -20,6 +20,7 @@ public:
     /*** type define ***/
     struct Cmd {
         inline static const std::string NewGroup = "/new";
+        inline static const std::string StartGroup = "/start";
     };
 
     /*** static function and variable ***/
@@ -47,6 +48,9 @@ private:
     int onNewGroup(const std::weak_ptr<Carrier>& carrier,
                    const std::vector<std::string>& args,
                    const std::string& controller, int64_t timestamp);
+    int onStartGroup(const std::weak_ptr<Carrier>& carrier,
+                     const std::vector<std::string>& args,
+                     const std::string& controller, int64_t timestamp);
 
 }; // class ManagerCmdParser
 
