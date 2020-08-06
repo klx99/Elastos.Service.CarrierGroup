@@ -340,7 +340,7 @@ int Storage::findMessages(int64_t startTime, int count,
 
     list.clear();
 
-    int found = ErrCode::NotFoundError;
+    int found = 0;
     try {
         std::string sql = makeQuerySql(TableName::Message, Column::Message,
                                        {

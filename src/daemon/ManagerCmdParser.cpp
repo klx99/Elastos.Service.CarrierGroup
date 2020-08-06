@@ -38,12 +38,12 @@ std::vector<CmdParser::CommandInfo> ManagerCmdParser::getCmdInfoList()
             Cmd::NewGroup,
             CommandInfo::Performer::Anyone,
             std::bind(&ManagerCmdParser::onNewGroup, this, _1, _2, _3, _4),
-            "[" + Cmd::NewGroup + " groupname] New a new group."
+            "[" + Cmd::NewGroup + "] New a new group."
         }, {
             Cmd::StartGroup,
             CommandInfo::Performer::Anyone,
             std::bind(&ManagerCmdParser::onStartGroup, this, _1, _2, _3, _4),
-            "[" + Cmd::StartGroup + " groupname] New a new group."
+            "[" + Cmd::StartGroup + " groupaddress] New a new group."
         }
     });
 
@@ -60,11 +60,11 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
     auto carrierPtr = carrier.lock();
     CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
 
-    if(args.size() < 1) {
-        carrierPtr->sendMessage(controller, PromptBadArguments);
-        CHECK_ERROR(ErrCode::InvalidArgument);
-    }
-    const auto& groupName = args[0];
+    // if(args.size() < 1) {
+    //     carrierPtr->sendMessage(controller, PromptBadArguments);
+    //     CHECK_ERROR(ErrCode::InvalidArgument);
+    // }
+    // const auto& groupName = args[0];
     
     auto groupDataDir = std::filesystem::path(controller) / DateTime::NsToString(timestamp, false);
     auto groupDataPath = OptParser::GetInstance()->getDataDir() / groupDataDir;
