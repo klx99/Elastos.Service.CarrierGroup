@@ -1,0 +1,8 @@
+1. 编译：参照Carrier.Native.
+2. 运行carrier.groupd, 可以通过carrier.groupd -h获取参数。无参数视为运行manager，data目录为当前目录。
+3. carrier.groupd online后，使用fadd 添加好友，进入manager。
+4. 发送/help命令获取帮助，以'/'开头的message视为命令，elashell中使用':'代替空格。
+5. 发送/new命令创建一个新group，发送/start address命令运行一个即有group。
+6. 如果new成功，则返回一个新群的address，通过fadd address可以进群，第一个进群的人视为群主。
+7. online时，group会将offline～online之间的消息发送出来。
+8. 新群中，群主可以通过发送/help命令获取帮助, group和manager的命令有所不同。
