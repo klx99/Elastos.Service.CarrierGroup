@@ -47,6 +47,13 @@ public:
                          std::string cmd, const std::vector<std::string>& args,
                          const std::string& controller, int64_t timestamp);
 
+    virtual int onIgnore(const std::weak_ptr<Carrier>& carrier,
+                         const std::vector<std::string>& args,
+                         const std::string& controller, int64_t timestamp);
+    virtual int onUnimplemented(const std::weak_ptr<Carrier>& carrier,
+                                const std::vector<std::string>& args,
+                                const std::string& controller, int64_t timestamp);
+
 protected:
     /*** type define ***/
     struct CommandInfo {
@@ -87,13 +94,6 @@ private:
     /*** static function and variable ***/
 
     /*** class function and variable ***/
-    int onIgnore(const std::weak_ptr<Carrier>& carrier,
-                 const std::vector<std::string>& args,
-                 const std::string& controller, int64_t timestamp);
-    int onUnimplemented(const std::weak_ptr<Carrier>& carrier,
-                        const std::vector<std::string>& args,
-                        const std::string& controller, int64_t timestamp);
-
     int onHelp(const std::weak_ptr<Carrier>& carrier,
                const std::vector<std::string>& args,
                const std::string& controller, int64_t timestamp);

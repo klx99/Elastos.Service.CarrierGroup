@@ -44,6 +44,16 @@ std::vector<CmdParser::CommandInfo> ManagerCmdParser::getCmdInfoList()
             CommandInfo::Performer::Anyone,
             std::bind(&ManagerCmdParser::onStartGroup, this, _1, _2, _3, _4),
             "[" + Cmd::StartGroup + " groupaddress] New a new group."
+        }, {
+            Cmd::ListGroup,
+            CommandInfo::Performer::Anyone,
+            std::bind(&ManagerCmdParser::onListGroup, this, _1, _2, _3, _4),
+            "[" + Cmd::ListGroup + "] List all owned groups."
+        }, {
+            Cmd::Forward,
+            CommandInfo::Performer::Anyone,
+            std::bind(&CmdParser::onIgnore, this, _1, _2, _3, _4),
+            ""
         }
     });
 
@@ -89,7 +99,7 @@ int ManagerCmdParser::onNewGroup(const std::weak_ptr<Carrier>& carrier,
         getTaskThread()->sleepMS(tick);
     }
 
-    rc = getStorage()->updateManager(timestamp, newGroupAddress, groupDataDir.string());
+    rc = getStorage()->updateManager(timestamp, controller, newGroupAddress, groupDataDir.string());
     CHECK_ERROR(rc);
 
     std::string response;
@@ -134,6 +144,28 @@ int ManagerCmdParser::onStartGroup(const std::weak_ptr<Carrier>& carrier,
 
     std::string response = "Success to start group: " + groupAddr;
     rc = carrierPtr->sendMessage(controller, response);
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int ManagerCmdParser::onListGroup(const std::weak_ptr<Carrier>& carrier,
+                                  const std::vector<std::string>& args,
+                                  const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+    
+    std::vector<std::string> groupList;
+    int rc = getStorage()->listGroup(controller, groupList);
+    CHECK_ERROR(rc);
+
+    std::stringstream response;
+    response <<  "group list:" << std::endl;
+    for(const auto& it: groupList) {
+        response << it << std::endl;
+    }
+    rc = carrierPtr->sendMessage(controller, response.str());
     CHECK_ERROR(rc);
 
     return 0;

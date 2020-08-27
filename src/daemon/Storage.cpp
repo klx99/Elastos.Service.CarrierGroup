@@ -19,7 +19,7 @@ const std::string Storage::TableName::Message = "message";
 const std::string Storage::TableName::Manager = "manager";
 const std::string Storage::Column::Member = "userid, uptime, name, status";
 const std::string Storage::Column::Message = "timestamp, sender, content";
-const std::string Storage::Column::Manager = "timestamp, groupaddr, groupdir";
+const std::string Storage::Column::Manager = "timestamp, owner, groupaddr, groupdir";
 const std::string Storage::MemberStatus::Admin = "'admin'";
 const std::string Storage::MemberStatus::Member = "'member'";
 const std::string Storage::MemberStatus::Blocked = "'blocked'";
@@ -58,6 +58,7 @@ int Storage::mount(const std::string& dir)
 
         sql = makeCreateSql(TableName::Manager, Column::Manager, {
             "INTEGER NOT NULL",
+            "TEXT NOT NULL",
             "TEXT UNIQUE NOT NULL",
             "TEXT NOT NULL",
         });
@@ -310,6 +311,7 @@ int Storage::updateMessage(const MessageInfo& info)
 }
 
 int Storage::updateManager(int64_t timestamp,
+                           const std::string& owner,
                            const std::string& groupAddr,
                            const std::string& groupDir)
 {
@@ -317,7 +319,7 @@ int Storage::updateManager(int64_t timestamp,
 
     try {
         std::stringstream values;
-        values << timestamp << ",'" << groupAddr << "','" << groupDir << "'";
+        values << timestamp << ",'" << owner << "','" << groupAddr << "','" << groupDir << "'";
         std::string sql = makeUpdateSql(TableName::Manager, Column::Manager, values.str());
         database->exec(sql);
     } catch (SqlDB::Exception& e) {
@@ -382,6 +384,34 @@ int Storage::findGroup(const std::string& groupAddr,
         query.executeStep();
         groupDir = std::string(query.getColumn(2));
         found = 1;
+    } catch (SqlDB::Exception& e) {
+        Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
+                         e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    } catch (std::exception& e) {
+        Log::E(Log::TAG, "sqldb exception: %d", e.what());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    }
+
+    return found;
+
+}
+
+int Storage::listGroup(const std::string& owner,
+                       std::vector<std::string>& groupList)
+{
+    CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
+
+    int found = ErrCode::NotFoundError;
+    try {
+        std::string sql = makeQuerySql(TableName::Manager, Column::Manager,
+                                       { "owner='" + owner + "'" });
+        SqlDB::Statement query(*database, sql);
+        groupList.clear();
+        while(query.executeStep()) {
+            groupList.push_back(query.getColumn(2));
+        }
+        found = groupList.size();
     } catch (SqlDB::Exception& e) {
         Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
                          e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());

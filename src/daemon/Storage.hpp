@@ -61,6 +61,7 @@ public:
     int updateMessage(const MessageInfo& info);
 
     int updateManager(int64_t timestamp,
+                      const std::string& owner,
                       const std::string& groupAddr,
                       const std::string& groupDir);
 
@@ -70,6 +71,10 @@ public:
 
     int findGroup(const std::string& groupAddr,
                   std::string& groupDir);
+
+    int listGroup(const std::string& owner,
+                  std::vector<std::string>& groupList);
+
 
 protected:
     /*** type define ***/
