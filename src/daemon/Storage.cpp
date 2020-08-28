@@ -334,6 +334,25 @@ int Storage::updateManager(int64_t timestamp,
     return 0;
 }
 
+int Storage::deleteManager(const std::string& groupAddr)
+{
+    CHECK_ASSERT(database, ErrCode::SqlDbNotMount);
+
+    try {
+        std::string sql = makeDeleteSql(TableName::Manager, {"groupaddr='" + groupAddr + "'"});
+        database->exec(sql);
+    } catch (SqlDB::Exception& e) {
+        Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
+                         e.getErrorCode(), e.getExtendedErrorCode(), e.getErrorStr());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    } catch (std::exception& e) {
+        Log::E(Log::TAG, "sqldb exception: %d", e.what());
+        CHECK_ERROR(ErrCode::SqlDbError);
+    }
+
+    return 0;
+}
+
 int Storage::findMessages(int64_t startTime, int count,
                           const std::string& ignoreId,
                           std::vector<MessageInfo>& list)
@@ -382,7 +401,7 @@ int Storage::findGroup(const std::string& groupAddr,
                                        { "groupaddr='" + groupAddr + "'" });
         SqlDB::Statement query(*database, sql);
         query.executeStep();
-        groupDir = std::string(query.getColumn(2));
+        groupDir = std::string(query.getColumn(3));
         found = 1;
     } catch (SqlDB::Exception& e) {
         Log::E(Log::TAG, "sqldb exception: (%d/%d)%s",
@@ -503,10 +522,33 @@ std::string Storage::makeUpdateSql(const std::string& table,
     sqlStream << ";";
     
     auto sql = sqlStream.str();
-    Log::V(Log::TAG, "make update table sql: %s", sql.c_str());
+    Log::V(Log::TAG, "make update data sql: %s", sql.c_str());
 
     return sql;
 }
+
+std::string Storage::makeDeleteSql(const std::string& table,
+                                   const std::vector<std::string>& conditions)
+{
+    std::stringstream sqlStream;
+
+    sqlStream << "DELETE FROM " << table;
+    for(int idx = 0; idx < conditions.size(); idx++) {
+        if(idx == 0) {
+            sqlStream << " WHERE ";
+        } else {
+            sqlStream << " AND ";
+        }
+        sqlStream << "(" << conditions[idx] << ")";
+    }
+    sqlStream << ";";
+    
+    auto sql = sqlStream.str();
+    Log::V(Log::TAG, "make delete data sql: %s", sql.c_str());
+
+    return sql;
+}
+
 
 std::string Storage::makeQuerySql(const std::string& table,
                                   const std::string& columns,
@@ -534,7 +576,7 @@ std::string Storage::makeQuerySql(const std::string& table,
     sqlStream << ";";
     
     auto sql = sqlStream.str();
-    Log::V(Log::TAG, "make query table sql: %s", sql.c_str());
+    Log::V(Log::TAG, "make query data sql: %s", sql.c_str());
 
     return sql;
 }

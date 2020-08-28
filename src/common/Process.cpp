@@ -33,7 +33,7 @@ int Process::Exec(const std::string& execPath,
     case 0:
         {
             // This code is executed by the child process
-            Log::W(Log::TAG, "Start to exec child process...");
+            Log::W(Log::TAG, "Start to exec child process by [%s].", execPath.c_str());
             std::vector<const char*> args;
             if(execArgs.size() > 0 && execPath != execArgs[0]) {
                 args.push_back(execPath.data());
@@ -42,8 +42,11 @@ int Process::Exec(const std::string& execPath,
                 args.push_back(it.data());
             }
             args.push_back(nullptr);
-            execv(execPath.data(), const_cast<char**>(args.data()));
-            exit(0);
+            int rc = execv(execPath.data(), const_cast<char**>(args.data()));
+            if(rc < 0) {
+                Log::E(Log::TAG, "Failed to exec %s: (%d)%s", execPath.c_str(), errno, strerror(errno));
+            }
+            exit(rc);
             break;
         }
     default:

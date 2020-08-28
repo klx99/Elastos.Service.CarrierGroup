@@ -79,8 +79,7 @@ void CmdListener::onReceivedMessage(const std::string& friendCode,
 {
     Log::D(Log::TAG, "%s", __PRETTY_FUNCTION__);
 
-    auto data = reinterpret_cast<const char*>(message.data());
-    std::string cmdline = std::string{data};
+    std::string cmdline = std::string{message.begin(), message.end()};
 
     // ignore hyper return receipt
     if(cmdline == "{\"command\":\"messageSeen\"}") {

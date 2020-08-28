@@ -86,6 +86,7 @@ public:
 	constexpr static const int SizeOverflowError = -21;
 	constexpr static const int NotExpectedReachedError = -22;
     constexpr static const int NotMatchError = -23;
+    constexpr static const int PermissionDeniedError = -24;
 
     constexpr static const int InvalidLocalDataDir = -50;
     constexpr static const int NoSecurityListener = -51;

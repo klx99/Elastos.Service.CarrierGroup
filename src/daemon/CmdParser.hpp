@@ -79,6 +79,7 @@ protected:
     static const std::string PromptAccessForbidden;
     static const std::string PromptBadCommand;
     static const std::string PromptBadArguments;
+    static const std::string PromptPermissionDenied;
 
     /*** class function and variable ***/
     explicit CmdParser() = default;

@@ -24,6 +24,8 @@ const std::string CmdParser::PromptAccessForbidden = "Access Forbidden!";
 const std::string CmdParser::PromptBadCommand = "Bad Command!"
                                                 "\nPlease use '/help' to get usage of all commands.";
 const std::string CmdParser::PromptBadArguments = "Bad Arguments!";
+const std::string CmdParser::PromptPermissionDenied = "Permission Denied!";
+
 
 /* =========================================== */
 /* === static function implement ============= */
@@ -192,6 +194,7 @@ int CmdParser::onIgnore(const std::weak_ptr<Carrier>& carrier,
                         const std::vector<std::string>& args,
                         const std::string& controller, int64_t timestamp)
 {
+    Log::I(Log::TAG, "Ignore useless cmd from %s", controller.c_str());
     return 0;
 }
 

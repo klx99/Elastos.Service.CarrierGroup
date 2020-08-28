@@ -50,10 +50,15 @@ std::vector<CmdParser::CommandInfo> ManagerCmdParser::getCmdInfoList()
             std::bind(&ManagerCmdParser::onListGroup, this, _1, _2, _3, _4),
             "[" + Cmd::ListGroup + "] List all owned groups."
         }, {
-            Cmd::Forward,
+            Cmd::DeleteGroup,
             CommandInfo::Performer::Anyone,
-            std::bind(&CmdParser::onIgnore, this, _1, _2, _3, _4),
-            ""
+            std::bind(&ManagerCmdParser::onDeleteGroup, this, _1, _2, _3, _4),
+            "[" + Cmd::DeleteGroup + " groupaddress] Delete all owned groups."
+        // }, {
+        //     Cmd::Forward,
+        //     CommandInfo::Performer::Anyone,
+        //     std::bind(&CmdParser::onIgnore, this, _1, _2, _3, _4),
+        //     ""
         }
     });
 
@@ -166,6 +171,65 @@ int ManagerCmdParser::onListGroup(const std::weak_ptr<Carrier>& carrier,
         response << it << std::endl;
     }
     rc = carrierPtr->sendMessage(controller, response.str());
+    CHECK_ERROR(rc);
+
+    return 0;
+}
+
+int ManagerCmdParser::onDeleteGroup(const std::weak_ptr<Carrier>& carrier,
+                                    const std::vector<std::string>& args,
+                                    const std::string& controller, int64_t timestamp)
+{
+    auto carrierPtr = carrier.lock();
+    CHECK_ASSERT(carrierPtr, ErrCode::PointerReleasedError);
+    
+    if(args.size() < 1) {
+        carrierPtr->sendMessage(controller, PromptBadArguments);
+        CHECK_ERROR(ErrCode::InvalidArgument);
+    }
+    const auto& groupAddr = args[0];
+
+    std::vector<std::string> groupList;
+    int rc = getStorage()->listGroup(controller, groupList);
+    CHECK_ERROR(rc);
+    for(const auto& it: groupList) {
+        Log::V(Log::TAG, " own group: %s", it.c_str());
+    }
+    
+    if(std::find(groupList.begin(), groupList.end(), groupAddr) == groupList.end()) {
+        carrierPtr->sendMessage(controller, PromptPermissionDenied);
+        CHECK_ERROR(ErrCode::PermissionDeniedError);
+    }
+
+    std::string savedGroupDir;
+    rc = getStorage()->findGroup(groupAddr, savedGroupDir);
+    CHECK_ERROR(rc);
+
+    auto groupDataDir = std::filesystem::path(savedGroupDir);
+    auto groupDataPath = OptParser::GetInstance()->getDataDir() / groupDataDir;
+    std::vector<std::string> groupArgs = {
+        "--group",
+        std::string("--") + OptParser::OptName::DataDir + "=" + groupDataPath.string(),
+    };
+    std::stringstream cmdline;
+    cmdline << "ps aux |grep '";
+    cmdline << OptParser::GetInstance()->getExecPath();
+    for(const auto& it: groupArgs) {
+        cmdline << " " << it;
+    }
+    cmdline << "' |grep -v grep |awk -v N=2 '{print $N}' |xargs kill";
+    Log::I(Log::TAG, "delete cmdline: %s", cmdline.str().c_str());
+
+    rc = std::system(cmdline.str().c_str());
+    CHECK_ERROR(rc);
+
+    rc = getStorage()->deleteManager(groupAddr);
+    CHECK_ERROR(rc);
+
+    std::filesystem::remove_all(groupDataDir);
+
+    std::string response = "Success to delete group: " + groupAddr;
+    rc = carrierPtr->sendMessage(controller, response);
     CHECK_ERROR(rc);
 
     return 0;

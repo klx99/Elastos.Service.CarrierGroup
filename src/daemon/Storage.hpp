@@ -65,6 +65,8 @@ public:
                       const std::string& groupAddr,
                       const std::string& groupDir);
 
+    int deleteManager(const std::string& groupAddr);
+
     int findMessages(int64_t startTime, int count,
                      const std::string& ignoreId,
                      std::vector<MessageInfo>& list);
@@ -110,6 +112,8 @@ private:
                               const std::string& values,
                               const std::string& check = {},
                               const std::vector<std::string>& updates = {});
+    std::string makeDeleteSql(const std::string& table,
+                              const std::vector<std::string>& conditions);
     std::string makeQuerySql(const std::string& table,
                              const std::string& columns,
                              const std::vector<std::string>& conditions,

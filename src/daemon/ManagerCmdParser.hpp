@@ -22,7 +22,8 @@ public:
         inline static const std::string NewGroup = "/new";
         inline static const std::string StartGroup = "/start";
         inline static const std::string ListGroup = "/list";
-        inline static const std::string Forward = "/forward";
+        inline static const std::string DeleteGroup = "/delete";
+        // inline static const std::string Forward = "/forward"; // workground: ignore hyper message response
     };
 
     /*** static function and variable ***/
@@ -56,6 +57,9 @@ private:
     int onListGroup(const std::weak_ptr<Carrier>& carrier,
                     const std::vector<std::string>& args,
                     const std::string& controller, int64_t timestamp);
+    int onDeleteGroup(const std::weak_ptr<Carrier>& carrier,
+                      const std::vector<std::string>& args,
+                      const std::string& controller, int64_t timestamp);
 
 }; // class ManagerCmdParser
 
